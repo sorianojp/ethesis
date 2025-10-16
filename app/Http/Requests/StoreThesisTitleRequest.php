@@ -28,6 +28,8 @@ class StoreThesisTitleRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'abstract_pdf' => ['required', 'file', 'mimes:pdf'],
             'endorsement_pdf' => ['required', 'file', 'mimes:pdf'],
+            'member_ids' => ['nullable', 'array'],
+            'member_ids.*' => ['integer', 'distinct', 'exists:users,id'],
         ];
     }
 
@@ -42,6 +44,23 @@ class StoreThesisTitleRequest extends FormRequest
 
                 if ($adviserId && ! User::teachers()->whereKey($adviserId)->exists()) {
                     $validator->errors()->add('adviser_id', __('Selected adviser must be a teacher.'));
+                }
+
+                $memberIds = collect($this->input('member_ids', []))
+                    ->filter(fn ($id) => $id !== null)
+                    ->map(fn ($id) => (int) $id)
+                    ->filter();
+
+                if ($memberIds->isEmpty()) {
+                    return;
+                }
+
+                $studentCount = User::students()
+                    ->whereIn('id', $memberIds)
+                    ->count();
+
+                if ($studentCount !== $memberIds->unique()->count()) {
+                    $validator->errors()->add('member_ids', __('All members must be students.'));
                 }
             },
         ];

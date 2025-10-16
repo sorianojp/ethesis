@@ -67,7 +67,7 @@ export default function ThesisTitleAdvisees({
                                         Title
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                        Student
+                                        Leader
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                         Chapters

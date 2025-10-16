@@ -46,11 +46,35 @@ class ThesisTitleController extends Controller
                 'created_at' => optional($title->created_at)->toIso8601String(),
             ]);
 
+        $memberThesisTitles = ThesisTitle::query()
+            ->with(['adviser', 'user'])
+            ->withCount('theses')
+            ->whereHas('members', fn ($query) => $query->where('users.id', $request->user()->id))
+            ->where('user_id', '!=', $request->user()->id)
+            ->latest()
+            ->get()
+            ->map(fn (ThesisTitle $title) => [
+                'id' => $title->id,
+                'title' => $title->title,
+                'leader' => $title->user ? [
+                    'id' => $title->user->id,
+                    'name' => $title->user->name,
+                ] : null,
+                'adviser' => $title->adviser ? [
+                    'id' => $title->adviser->id,
+                    'name' => $title->adviser->name,
+                ] : null,
+                'theses_count' => $title->theses_count,
+                'created_at' => optional($title->created_at)->toIso8601String(),
+            ])
+            ->values();
+
         return Inertia::render('thesis-titles/index', [
             'thesisTitles' => $thesisTitles,
             'permissions' => [
                 'create' => ! $this->userIsTeacher($request->user()) || $this->userHasRole($request->user(), 'Student'),
             ],
+            'memberThesisTitles' => $memberThesisTitles,
         ]);
     }
 
@@ -61,9 +85,14 @@ class ThesisTitleController extends Controller
         $teachers = User::teachers()
             ->orderBy('name')
             ->get(['id', 'name']);
+        $students = User::students()
+            ->whereKeyNot($request->user()->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return Inertia::render('thesis-titles/create', [
             'teachers' => $teachers,
+            'students' => $students,
         ]);
     }
 
@@ -74,6 +103,7 @@ class ThesisTitleController extends Controller
         $data = $request->validated();
 
         $adviser = $this->resolveAdviser((int) $data['adviser_id']);
+        $memberIds = $this->sanitizeMemberIds($data['member_ids'] ?? [], $request->user()->id)->all();
 
         $abstractPath = $this->uploadPdf(
             $request->file('abstract_pdf'),
@@ -95,6 +125,8 @@ class ThesisTitleController extends Controller
             'endorsement_pdf' => $endorsementPath,
         ]);
 
+        $thesisTitle->members()->sync($memberIds);
+
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
 
@@ -105,6 +137,8 @@ class ThesisTitleController extends Controller
         $thesisTitle->load([
             'theses' => fn ($query) => $query->latest(),
             'adviser',
+            'members',
+            'user',
         ]);
 
         $canManage = (int) $request->user()->id === (int) $thesisTitle->user_id;
@@ -117,8 +151,16 @@ class ThesisTitleController extends Controller
                     'id' => $thesisTitle->adviser->id,
                     'name' => $thesisTitle->adviser->name,
                 ] : null,
+                'leader' => $thesisTitle->user ? [
+                    'id' => $thesisTitle->user->id,
+                    'name' => $thesisTitle->user->name,
+                ] : null,
                 'abstract_pdf_url' => $this->fileUrl($thesisTitle->abstract_pdf),
                 'endorsement_pdf_url' => $this->fileUrl($thesisTitle->endorsement_pdf),
+                'members' => $thesisTitle->members->map(fn (User $member) => [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                ]),
                 'created_at' => optional($thesisTitle->created_at)->toIso8601String(),
                 'theses' => $thesisTitle->theses->map(fn (Thesis $thesis) => [
                     'id' => $thesis->id,
@@ -141,6 +183,10 @@ class ThesisTitleController extends Controller
         $teachers = User::teachers()
             ->orderBy('name')
             ->get(['id', 'name']);
+        $students = User::students()
+            ->whereKeyNot($thesisTitle->user_id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return Inertia::render('thesis-titles/edit', [
             'thesisTitle' => [
@@ -152,8 +198,10 @@ class ThesisTitleController extends Controller
                 ] : null,
                 'abstract_pdf_url' => $this->fileUrl($thesisTitle->abstract_pdf),
                 'endorsement_pdf_url' => $this->fileUrl($thesisTitle->endorsement_pdf),
+                'member_ids' => $thesisTitle->members()->pluck('user_id')->all(),
             ],
             'teachers' => $teachers,
+            'students' => $students,
         ]);
     }
 
@@ -165,6 +213,7 @@ class ThesisTitleController extends Controller
         $data = $request->validated();
 
         $adviser = $this->resolveAdviser((int) $data['adviser_id']);
+        $memberIds = $this->sanitizeMemberIds($data['member_ids'] ?? [], $request->user()->id)->all();
 
         $update = [
             'title' => $data['title'],
@@ -190,6 +239,7 @@ class ThesisTitleController extends Controller
         }
 
         $thesisTitle->update($update);
+        $thesisTitle->members()->sync($memberIds);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -305,6 +355,10 @@ class ThesisTitleController extends Controller
             return;
         }
 
+        if ($thesisTitle->members()->whereKey($user->id)->exists()) {
+            return;
+        }
+
         abort(403);
     }
 
@@ -345,6 +399,19 @@ class ThesisTitleController extends Controller
         }
 
         return $user->roles()->where('name', $role)->exists();
+    }
+
+    /**
+     * @param  iterable<int|string>  $memberIds
+     */
+    private function sanitizeMemberIds(iterable $memberIds, int $leaderId): Collection
+    {
+        return collect($memberIds)
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0 && $id !== $leaderId)
+            ->unique()
+            ->values();
     }
 
     private function roleMatches(mixed $assigned, string $role): bool

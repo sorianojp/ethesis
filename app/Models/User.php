@@ -57,8 +57,18 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class);
     }
 
+    public function thesisTitles(): BelongsToMany
+    {
+        return $this->belongsToMany(ThesisTitle::class)->withTimestamps();
+    }
+
     public function scopeTeachers(Builder $query): Builder
     {
         return $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', 'Teacher'));
+    }
+
+    public function scopeStudents(Builder $query): Builder
+    {
+        return $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('name', 'Student'));
     }
 }

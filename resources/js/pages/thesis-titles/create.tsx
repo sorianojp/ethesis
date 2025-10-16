@@ -2,6 +2,7 @@ import ThesisTitleController from '@/actions/App/Http/Controllers/ThesisTitleCon
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -31,9 +32,16 @@ interface ThesisTitleCreateProps {
         id: number;
         name: string;
     }[];
+    students: {
+        id: number;
+        name: string;
+    }[];
 }
 
-export default function ThesisTitleCreate({ teachers }: ThesisTitleCreateProps) {
+export default function ThesisTitleCreate({
+    teachers,
+    students,
+}: ThesisTitleCreateProps) {
     const teacherOptions = useMemo(
         () =>
             teachers.map((teacher) => ({
@@ -59,6 +67,31 @@ export default function ThesisTitleCreate({ teachers }: ThesisTitleCreateProps) 
     }, [teacherOptions]);
 
     const adviserSelected = adviserId !== '';
+    const [memberIds, setMemberIds] = useState<string[]>([]);
+
+    const studentOptions = useMemo(
+        () =>
+            students.map((student) => ({
+                id: student.id.toString(),
+                name: student.name,
+            })),
+        [students],
+    );
+
+    const toggleMember = (id: string, checked: boolean | 'indeterminate') => {
+        setMemberIds((prev) => {
+            const normalized = checked === true;
+            if (normalized) {
+                if (prev.includes(id)) {
+                    return prev;
+                }
+
+                return [...prev, id];
+            }
+
+            return prev.filter((value) => value !== id);
+        });
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -85,6 +118,49 @@ export default function ThesisTitleCreate({ teachers }: ThesisTitleCreateProps) 
                                     autoFocus
                                 />
                                 <InputError message={errors.title} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Members</Label>
+                                {studentOptions.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No students are available to add as
+                                        members.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2 rounded-md border border-border p-3">
+                                        {studentOptions.map((student) => (
+                                            <label
+                                                key={student.id}
+                                                className="flex items-center gap-2"
+                                                htmlFor={`member-${student.id}`}
+                                            >
+                                                <Checkbox
+                                                    id={`member-${student.id}`}
+                                                    checked={memberIds.includes(
+                                                        student.id,
+                                                    )}
+                                                    onCheckedChange={(checked) =>
+                                                        toggleMember(
+                                                            student.id,
+                                                            checked,
+                                                        )
+                                                    }
+                                                />
+                                                <span>{student.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                                {memberIds.map((id, index) => (
+                                    <input
+                                        key={id}
+                                        type="hidden"
+                                        name={`member_ids[${index}]`}
+                                        value={id}
+                                    />
+                                ))}
+                                <InputError message={errors.member_ids} />
                             </div>
 
                             <div className="space-y-2">

@@ -17,10 +17,12 @@ interface ThesisTitleShowProps {
         id: number;
         title: string;
         adviser: { id: number; name: string } | null;
+        leader: { id: number; name: string } | null;
         abstract_pdf_url: string | null;
         endorsement_pdf_url: string | null;
         created_at: string | null;
         theses: ThesisItem[];
+        members: { id: number; name: string }[];
     };
     permissions: {
         manage: boolean;
@@ -76,6 +78,8 @@ export default function ThesisTitleShow({
     const headingDescription = canManage
         ? `Upload ${thesisTitle.title} Chapters here.`
         : `Review ${thesisTitle.title} chapters.`;
+    const hasMembers = thesisTitle.members.length > 0;
+    const showLeaderInfo = !canManage && thesisTitle.leader !== null;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -98,6 +102,34 @@ export default function ThesisTitleShow({
                             Upload Chapter
                         </Link>
                     </Button>
+                )}
+
+                {(showLeaderInfo || hasMembers) && (
+                    <div className="my-6 rounded-xl border border-sidebar-border/60 bg-muted/40 p-4 text-sm dark:border-sidebar-border">
+                        {showLeaderInfo && (
+                            <p className="text-foreground">
+                                <span className="font-medium text-muted-foreground">
+                                    Leader:
+                                </span>{' '}
+                                {thesisTitle.leader?.name ?? '—'}
+                            </p>
+                        )}
+
+                        {hasMembers && (
+                            <div className={showLeaderInfo ? 'mt-4' : undefined}>
+                                <p className="font-medium text-muted-foreground">
+                                    Members
+                                </p>
+                                <ul className="mt-2 list-disc space-y-1 pl-5">
+                                    {thesisTitle.members.map((member) => (
+                                        <li key={member.id} className="text-foreground">
+                                            {member.name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 <div className="overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
