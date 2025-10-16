@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ThesisStatus;
 use App\Http\Requests\StoreThesisRequest;
 use App\Http\Requests\UpdateThesisRequest;
+use App\Http\Requests\UpdateThesisStatusRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
 use Illuminate\Http\RedirectResponse;
@@ -51,6 +53,7 @@ class ThesisController extends Controller
         $thesisTitle->theses()->create([
             'chapter' => $data['chapter'],
             'thesis_pdf' => $path,
+            'status' => ThesisStatus::PENDING,
         ]);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
@@ -97,9 +100,22 @@ class ThesisController extends Controller
                 $request->user()->id,
                 'theses/'.$thesisTitle->id
             );
+            $update['status'] = ThesisStatus::PENDING;
         }
 
         $thesis->update($update);
+
+        return redirect()->route('thesis-titles.show', $thesisTitle);
+    }
+
+    public function updateStatus(UpdateThesisStatusRequest $request, ThesisTitle $thesisTitle, Thesis $thesis): RedirectResponse
+    {
+        $this->ensureAdviser($request, $thesisTitle);
+        $this->ensureThesisBelongsToTitle($thesisTitle, $thesis);
+
+        $thesis->update([
+            'status' => $request->status(),
+        ]);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -119,9 +135,24 @@ class ThesisController extends Controller
     {
         abort_unless($request->user() && $request->user()->id === $thesisTitle->user_id, 403);
 
-        if ($thesis && $thesis->thesis_title_id !== $thesisTitle->id) {
-            abort(404);
+        if ($thesis) {
+            $this->ensureThesisBelongsToTitle($thesisTitle, $thesis);
         }
+    }
+
+    private function ensureAdviser(Request $request, ThesisTitle $thesisTitle): void
+    {
+        abort_unless(
+            $request->user()
+            && $thesisTitle->adviser_id
+            && $request->user()->id === (int) $thesisTitle->adviser_id,
+            403
+        );
+    }
+
+    private function ensureThesisBelongsToTitle(ThesisTitle $thesisTitle, Thesis $thesis): void
+    {
+        abort_unless($thesis->thesis_title_id === $thesisTitle->id, 404);
     }
 
     private function uploadPdf(UploadedFile $file, int $userId, string $folder): string

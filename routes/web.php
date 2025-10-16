@@ -17,6 +17,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('thesis-titles/advisees', [ThesisTitleController::class, 'advisees'])->name('thesis-titles.advisees');
     Route::resource('thesis-titles', ThesisTitleController::class);
     Route::resource('thesis-titles.theses', ThesisController::class);
+    Route::patch('thesis-titles/{thesis_title}/theses/{thesis}/status', [ThesisController::class, 'updateStatus'])
+        ->name('thesis-titles.theses.status');
 });
 
 require __DIR__.'/settings.php';

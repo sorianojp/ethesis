@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ThesisStatus;
 use App\Http\Requests\StoreThesisTitleRequest;
 use App\Http\Requests\UpdateThesisTitleRequest;
 use App\Models\Thesis;
@@ -10,12 +11,12 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class ThesisTitleController extends Controller
@@ -142,6 +143,7 @@ class ThesisTitleController extends Controller
         ]);
 
         $canManage = (int) $request->user()->id === (int) $thesisTitle->user_id;
+        $canReview = $thesisTitle->adviser_id && (int) $request->user()->id === (int) $thesisTitle->adviser_id;
 
         return Inertia::render('thesis-titles/show', [
             'thesisTitle' => [
@@ -167,10 +169,14 @@ class ThesisTitleController extends Controller
                     'chapter' => $thesis->chapter,
                     'thesis_pdf_url' => $this->fileUrl($thesis->thesis_pdf),
                     'created_at' => optional($thesis->created_at)->toIso8601String(),
+                    'status' => $thesis->status instanceof ThesisStatus
+                        ? $thesis->status->value
+                        : ($thesis->status ?? ThesisStatus::PENDING->value),
                 ]),
             ],
             'permissions' => [
                 'manage' => $canManage,
+                'review' => (bool) $canReview,
             ],
         ]);
     }

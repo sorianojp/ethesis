@@ -2,14 +2,18 @@ import ThesisController from '@/actions/App/Http/Controllers/ThesisController';
 import ThesisTitleController from '@/actions/App/Http/Controllers/ThesisTitleController';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 import { Form, Head, Link } from '@inertiajs/react';
+
+type ThesisStatus = 'pending' | 'approved' | 'rejected';
 
 interface ThesisItem {
     id: number;
     chapter: string;
     thesis_pdf_url: string | null;
     created_at: string | null;
+    status: ThesisStatus;
 }
 
 interface ThesisTitleShowProps {
@@ -26,6 +30,7 @@ interface ThesisTitleShowProps {
     };
     permissions: {
         manage: boolean;
+        review: boolean;
     };
 }
 
@@ -43,11 +48,21 @@ const formatDate = (value: string | null) => {
     return date.toLocaleString();
 };
 
+const STATUS_META: Record<
+    ThesisStatus,
+    { label: string; variant: 'default' | 'secondary' | 'destructive' }
+> = {
+    pending: { label: 'Pending', variant: 'secondary' },
+    approved: { label: 'Approved', variant: 'default' },
+    rejected: { label: 'Rejected', variant: 'destructive' },
+};
+
 export default function ThesisTitleShow({
     thesisTitle,
     permissions,
 }: ThesisTitleShowProps) {
     const canManage = permissions.manage;
+    const canReview = permissions.review;
 
     const breadcrumbs = canManage
         ? [
@@ -143,6 +158,9 @@ export default function ThesisTitleShow({
                                     File
                                 </th>
                                 <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                    Status
+                                </th>
+                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                     Uploaded
                                 </th>
                                 <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -154,7 +172,7 @@ export default function ThesisTitleShow({
                             {thesisTitle.theses.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan={4}
+                                        colSpan={5}
                                         className="px-6 py-10 text-center text-sm text-muted-foreground"
                                     >
                                         No thesis files yet.
@@ -188,6 +206,22 @@ export default function ThesisTitleShow({
                                                 —
                                             </span>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {(() => {
+                                            const statusInfo =
+                                                STATUS_META[thesis.status] ??
+                                                STATUS_META.pending;
+
+                                            return (
+                                                <Badge
+                                                    variant={statusInfo.variant}
+                                                    className="px-3 py-1 text-xs uppercase tracking-wide"
+                                                >
+                                                    {statusInfo.label}
+                                                </Badge>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 text-muted-foreground">
                                         {formatDate(thesis.created_at)}
@@ -244,6 +278,71 @@ export default function ThesisTitleShow({
                                                         >
                                                             Delete
                                                         </Button>
+                                                    )}
+                                                </Form>
+                                            </div>
+                                        ) : canReview ? (
+                                            <div className="flex items-center gap-3">
+                                                <Form
+                                                    {...ThesisController.updateStatus.form(
+                                                        {
+                                                            thesis_title:
+                                                                thesisTitle.id,
+                                                            thesis: thesis.id,
+                                                        },
+                                                    )}
+                                                >
+                                                    {({ processing }) => (
+                                                        <>
+                                                            <input
+                                                                type="hidden"
+                                                                name="status"
+                                                                value="approved"
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={
+                                                                    processing ||
+                                                                    thesis.status ===
+                                                                        'approved'
+                                                                }
+                                                            >
+                                                                Approve
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </Form>
+                                                <Form
+                                                    {...ThesisController.updateStatus.form(
+                                                        {
+                                                            thesis_title:
+                                                                thesisTitle.id,
+                                                            thesis: thesis.id,
+                                                        },
+                                                    )}
+                                                >
+                                                    {({ processing }) => (
+                                                        <>
+                                                            <input
+                                                                type="hidden"
+                                                                name="status"
+                                                                value="rejected"
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                disabled={
+                                                                    processing ||
+                                                                    thesis.status ===
+                                                                        'rejected'
+                                                                }
+                                                            >
+                                                                Reject
+                                                            </Button>
+                                                        </>
                                                     )}
                                                 </Form>
                                             </div>
