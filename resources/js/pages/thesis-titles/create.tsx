@@ -4,8 +4,16 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { Form, Head, Link } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs = [
     {
@@ -18,7 +26,40 @@ const breadcrumbs = [
     },
 ];
 
-export default function ThesisTitleCreate() {
+interface ThesisTitleCreateProps {
+    teachers: {
+        id: number;
+        name: string;
+    }[];
+}
+
+export default function ThesisTitleCreate({ teachers }: ThesisTitleCreateProps) {
+    const teacherOptions = useMemo(
+        () =>
+            teachers.map((teacher) => ({
+                id: teacher.id.toString(),
+                name: teacher.name,
+            })),
+        [teachers],
+    );
+
+    const [adviserId, setAdviserId] = useState<string>(
+        teacherOptions[0]?.id ?? '',
+    );
+
+    useEffect(() => {
+        if (teacherOptions.length === 0) {
+            setAdviserId('');
+            return;
+        }
+
+        setAdviserId((current) =>
+            current !== '' ? current : teacherOptions[0]?.id ?? '',
+        );
+    }, [teacherOptions]);
+
+    const adviserSelected = adviserId !== '';
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create thesis" />
@@ -44,6 +85,44 @@ export default function ThesisTitleCreate() {
                                     autoFocus
                                 />
                                 <InputError message={errors.title} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="adviser_id">Adviser</Label>
+                                <Select
+                                    value={adviserId}
+                                    onValueChange={setAdviserId}
+                                    disabled={teacherOptions.length === 0}
+                                >
+                                    <SelectTrigger
+                                        id="adviser_id"
+                                        aria-invalid={Boolean(errors.adviser_id)}
+                                    >
+                                        <SelectValue placeholder="Choose adviser" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {teacherOptions.map((teacher) => (
+                                            <SelectItem
+                                                value={teacher.id}
+                                                key={teacher.id}
+                                            >
+                                                {teacher.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <input
+                                    type="hidden"
+                                    name="adviser_id"
+                                    value={adviserId}
+                                />
+                                {teacherOptions.length === 0 && (
+                                    <p className="text-xs text-destructive">
+                                        No teachers available. Contact an
+                                        administrator.
+                                    </p>
+                                )}
+                                <InputError message={errors.adviser_id} />
                             </div>
 
                             <div className="space-y-2">
@@ -92,7 +171,10 @@ export default function ThesisTitleCreate() {
                                     </Link>
                                 </Button>
 
-                                <Button type="submit" disabled={processing}>
+                                <Button
+                                    type="submit"
+                                    disabled={processing || !adviserSelected}
+                                >
                                     Save
                                 </Button>
                             </div>

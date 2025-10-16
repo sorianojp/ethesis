@@ -16,10 +16,14 @@ interface ThesisTitleShowProps {
     thesisTitle: {
         id: number;
         title: string;
+        adviser: { id: number; name: string } | null;
         abstract_pdf_url: string | null;
         endorsement_pdf_url: string | null;
         created_at: string | null;
         theses: ThesisItem[];
+    };
+    permissions: {
+        manage: boolean;
     };
 }
 
@@ -37,21 +41,41 @@ const formatDate = (value: string | null) => {
     return date.toLocaleString();
 };
 
-export default function ThesisTitleShow({ thesisTitle }: ThesisTitleShowProps) {
-    const breadcrumbs = [
-        {
-            title: 'Thesis',
-            href: ThesisTitleController.index().url,
-        },
-        {
-            title: thesisTitle.title,
-            href: ThesisTitleController.show({
-                thesis_title: thesisTitle.id,
-            }).url,
-        },
-    ];
+export default function ThesisTitleShow({
+    thesisTitle,
+    permissions,
+}: ThesisTitleShowProps) {
+    const canManage = permissions.manage;
 
-    const createdLabel = formatDate(thesisTitle.created_at);
+    const breadcrumbs = canManage
+        ? [
+              {
+                  title: 'Thesis',
+                  href: ThesisTitleController.index().url,
+              },
+              {
+                  title: thesisTitle.title,
+                  href: ThesisTitleController.show({
+                      thesis_title: thesisTitle.id,
+                  }).url,
+              },
+          ]
+        : [
+              {
+                  title: 'Advisees',
+                  href: ThesisTitleController.advisees().url,
+              },
+              {
+                  title: thesisTitle.title,
+                  href: ThesisTitleController.show({
+                      thesis_title: thesisTitle.id,
+                  }).url,
+              },
+          ];
+
+    const headingDescription = canManage
+        ? `Upload ${thesisTitle.title} Chapters here.`
+        : `Review ${thesisTitle.title} chapters.`;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -59,20 +83,22 @@ export default function ThesisTitleShow({ thesisTitle }: ThesisTitleShowProps) {
             <div className="px-4 py-6">
                 <Heading
                     title="Thesis Chapters"
-                    description={`Upload ${thesisTitle.title} Chapters here.`}
+                    description={headingDescription}
                 />
-                <Button asChild>
-                    <Link
-                        href={
-                            ThesisController.create({
-                                thesis_title: thesisTitle.id,
-                            }).url
-                        }
-                        prefetch
-                    >
-                        Upload Chapter
-                    </Link>
-                </Button>
+                {canManage && (
+                    <Button asChild>
+                        <Link
+                            href={
+                                ThesisController.create({
+                                    thesis_title: thesisTitle.id,
+                                }).url
+                            }
+                            prefetch
+                        >
+                            Upload Chapter
+                        </Link>
+                    </Button>
+                )}
 
                 <div className="overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
                     <table className="min-w-full divide-y divide-border">
@@ -111,14 +137,20 @@ export default function ThesisTitleShow({ thesisTitle }: ThesisTitleShowProps) {
                                     </td>
                                     <td className="px-6 py-4">
                                         {thesis.thesis_pdf_url ? (
-                                            <a
-                                                href={thesis.thesis_pdf_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-sm font-medium text-primary hover:underline"
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="px-3 text-sm font-medium"
+                                                asChild
                                             >
-                                                View PDF
-                                            </a>
+                                                <a
+                                                    href={thesis.thesis_pdf_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    View
+                                                </a>
+                                            </Button>
                                         ) : (
                                             <span className="text-sm text-muted-foreground">
                                                 —
@@ -129,49 +161,65 @@ export default function ThesisTitleShow({ thesisTitle }: ThesisTitleShowProps) {
                                         {formatDate(thesis.created_at)}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <Link
-                                                href={
-                                                    ThesisController.edit({
-                                                        thesis_title:
-                                                            thesisTitle.id,
-                                                        thesis: thesis.id,
-                                                    }).url
-                                                }
-                                                className="text-sm font-medium text-primary hover:underline"
-                                                prefetch
-                                            >
-                                                Edit
-                                            </Link>
-                                            <Form
-                                                {...ThesisController.destroy.form(
-                                                    {
-                                                        thesis_title:
-                                                            thesisTitle.id,
-                                                        thesis: thesis.id,
-                                                    },
-                                                )}
-                                                onSubmit={(event) => {
-                                                    if (
-                                                        !window.confirm(
-                                                            'Delete this thesis file? This action cannot be undone.',
-                                                        )
-                                                    ) {
-                                                        event.preventDefault();
-                                                    }
-                                                }}
-                                            >
-                                                {({ processing }) => (
-                                                    <Button
-                                                        type="submit"
-                                                        variant="link"
-                                                        disabled={processing}
+                                        {canManage ? (
+                                            <div className="flex items-center gap-3">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={
+                                                            ThesisController.edit(
+                                                                {
+                                                                    thesis_title:
+                                                                        thesisTitle.id,
+                                                                    thesis: thesis.id,
+                                                                },
+                                                            ).url
+                                                        }
+                                                        prefetch
                                                     >
-                                                        Delete
-                                                    </Button>
-                                                )}
-                                            </Form>
-                                        </div>
+                                                        Edit
+                                                    </Link>
+                                                </Button>
+                                                <Form
+                                                    {...ThesisController.destroy.form(
+                                                        {
+                                                            thesis_title:
+                                                                thesisTitle.id,
+                                                            thesis: thesis.id,
+                                                        },
+                                                    )}
+                                                    onSubmit={(event) => {
+                                                        if (
+                                                            !window.confirm(
+                                                                'Delete this thesis file? This action cannot be undone.',
+                                                            )
+                                                        ) {
+                                                            event.preventDefault();
+                                                        }
+                                                    }}
+                                                >
+                                                    {({ processing }) => (
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    )}
+                                                </Form>
+                                            </div>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">
+                                                —
+                                            </span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

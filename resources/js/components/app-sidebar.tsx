@@ -12,23 +12,16 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
-import { BookMarked, BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { type NavItem, type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
+import { BookMarked, BookOpen, Folder, GraduationCap, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Thesis',
-        href: ThesisTitleController.index(),
-        icon: BookMarked,
-    },
-];
+const dashboardNavItem: NavItem = {
+    title: 'Dashboard',
+    href: dashboard(),
+    icon: LayoutGrid,
+};
 
 const footerNavItems: NavItem[] = [
     {
@@ -44,6 +37,30 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage<SharedData>().props;
+    const rawRoles = auth.user?.roles;
+    const roles = Array.isArray(rawRoles) ? rawRoles : [];
+    const isTeacher = roles.includes('Teacher');
+    const isStudent = roles.includes('Student') || !isTeacher;
+
+    const mainNavItems: NavItem[] = [dashboardNavItem];
+
+    if (isStudent) {
+        mainNavItems.push({
+            title: 'Thesis',
+            href: ThesisTitleController.index(),
+            icon: BookMarked,
+        });
+    }
+
+    if (isTeacher) {
+        mainNavItems.push({
+            title: 'Advisees',
+            href: ThesisTitleController.advisees(),
+            icon: GraduationCap,
+        });
+    }
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>

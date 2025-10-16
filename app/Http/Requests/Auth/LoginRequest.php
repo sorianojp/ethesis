@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Services\StepAuthService;
 use Illuminate\Auth\Events\Lockout;
@@ -99,6 +100,40 @@ class LoginRequest extends FormRequest
         $user->password = Hash::make($this->input('password'));
 
         $user->save();
+
+        $roles = collect($userData['roles'] ?? [])
+            ->map(function ($role) {
+                if (is_string($role)) {
+                    return $role;
+                }
+
+                if (is_array($role)) {
+                    if (isset($role['name']) && is_string($role['name'])) {
+                        return $role['name'];
+                    }
+
+                    if (isset($role['title']) && is_string($role['title'])) {
+                        return $role['title'];
+                    }
+                }
+
+                return null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($roles->isNotEmpty()) {
+            $roleIds = [];
+            foreach ($roles as $roleName) {
+                $role = Role::firstOrCreate(['name' => $roleName]);
+                $roleIds[] = $role->id;
+            }
+
+            $user->roles()->sync($roleIds);
+        } else {
+            $user->roles()->detach();
+        }
 
         $this->attributes->set('step_auth', [
             'token' => $token,

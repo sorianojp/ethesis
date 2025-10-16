@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
+    Route::get('thesis-titles/advisees', [ThesisTitleController::class, 'advisees'])->name('thesis-titles.advisees');
     Route::resource('thesis-titles', ThesisTitleController::class);
     Route::resource('thesis-titles.theses', ThesisController::class);
 });
