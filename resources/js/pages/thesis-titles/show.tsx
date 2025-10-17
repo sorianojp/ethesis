@@ -357,7 +357,7 @@ export default function ThesisTitleShow({
                                             }
                                             prefetch
                                         >
-                                            Upload Chapter
+                                            Upload
                                         </Link>
                                     </Button>
                                 )}
@@ -367,7 +367,7 @@ export default function ThesisTitleShow({
                                     <thead className="bg-muted/50">
                                         <tr className="text-left text-sm font-semibold text-muted-foreground">
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Chapter
+                                                Chapter/Other File
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                                 Status
@@ -593,7 +593,7 @@ export default function ThesisTitleShow({
                                 </CardHeader>
 
                                 <CardContent>
-                                    <div className="grid gap-4">
+                                    <div className="grid gap-4 md:grid-cols-2">
                                         {/* Abstract Button/Message */}
                                         {thesisTitle.abstract_pdf_url ? (
                                             <Button
@@ -735,7 +735,12 @@ export default function ThesisTitleShow({
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                                <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                                                    {recentlySuccessful && (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Saved!
+                                                        </span>
+                                                    )}
                                                     <div className="flex flex-col gap-3 sm:flex-row">
                                                         <Button
                                                             type="button"
@@ -752,7 +757,7 @@ export default function ThesisTitleShow({
                                                                 processing
                                                             }
                                                         >
-                                                            Clear Dates
+                                                            Clear
                                                         </Button>
                                                         <Button
                                                             type="submit"
@@ -766,16 +771,11 @@ export default function ThesisTitleShow({
                                                                     Saving...
                                                                 </>
                                                             ) : (
-                                                                'Save Schedule'
+                                                                'Save'
                                                             )}
                                                         </Button>
                                                     </div>
                                                 </div>
-                                                {recentlySuccessful && (
-                                                    <span className="block text-sm text-primary">
-                                                        Saved!
-                                                    </span>
-                                                )}
                                             </>
                                         )}
                                     </Form>
@@ -829,7 +829,7 @@ export default function ThesisTitleShow({
                                             recentlySuccessful,
                                         }) => (
                                             <>
-                                                <div className="grid gap-4">
+                                                <div className="grid gap-4 md:grid-cols-2">
                                                     {PANEL_FIELDS.map(
                                                         ({
                                                             field,
@@ -948,7 +948,7 @@ export default function ThesisTitleShow({
                                                                 processing
                                                             }
                                                         >
-                                                            Clear Panelist
+                                                            Clear
                                                         </Button>
                                                         <Button
                                                             type="submit"
@@ -962,7 +962,7 @@ export default function ThesisTitleShow({
                                                                     Assigning...
                                                                 </>
                                                             ) : (
-                                                                'Assign Panel'
+                                                                'Assign'
                                                             )}
                                                         </Button>
                                                     </div>

@@ -37,10 +37,10 @@ export default function ThesisCreate({ thesisTitle }: ThesisCreateProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Upload Chapter • ${thesisTitle.title}`} />
+            <Head title={`Upload Chapter/File • ${thesisTitle.title}`} />
             <div className="px-4 py-6">
                 <Heading
-                    title={`Upload Chapter for ${thesisTitle.title}`}
+                    title={`Upload Chapter/File for ${thesisTitle.title}`}
                     description="Provide the chapter details below."
                 />
 
@@ -54,7 +54,7 @@ export default function ThesisCreate({ thesisTitle }: ThesisCreateProps) {
                     {({ processing, errors }) => (
                         <>
                             <div className="space-y-2">
-                                <Label htmlFor="chapter">Chapter</Label>
+                                <Label htmlFor="chapter">Chapter/File</Label>
                                 <Input
                                     id="chapter"
                                     name="chapter"
@@ -65,7 +65,7 @@ export default function ThesisCreate({ thesisTitle }: ThesisCreateProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="thesis_pdf">Thesis PDF</Label>
+                                <Label htmlFor="thesis_pdf">PDF File</Label>
                                 <Input
                                     id="thesis_pdf"
                                     name="thesis_pdf"
