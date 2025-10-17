@@ -33,7 +33,7 @@ export default function ThesisEdit({ thesisTitle, thesis }: ThesisEditProps) {
             }).url,
         },
         {
-            title: 'Edit thesis file',
+            title: `Edit ${thesis.chapter}`,
             href: ThesisController.edit({
                 thesis_title: thesisTitle.id,
                 thesis: thesis.id,
