@@ -21,6 +21,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('thesis-titles.theses.status');
     Route::patch('thesis-titles/{thesis_title}/panel', [ThesisTitleController::class, 'updatePanel'])
         ->name('thesis-titles.panel.update');
+    Route::patch('thesis-titles/{thesis_title}/schedule', [ThesisTitleController::class, 'updateSchedule'])
+        ->name('thesis-titles.schedule.update');
 });
 
 require __DIR__.'/settings.php';

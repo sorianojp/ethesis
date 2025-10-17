@@ -11,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -83,6 +84,8 @@ interface ThesisTitleShowProps {
         leader: { id: number; name: string } | null;
         abstract_pdf_url: string | null;
         endorsement_pdf_url: string | null;
+        proposal_defense_at: string | null;
+        final_defense_at: string | null;
         created_at: string | null;
         theses: ThesisItem[];
         members: { id: number; name: string }[];
@@ -91,6 +94,7 @@ interface ThesisTitleShowProps {
     permissions: {
         manage: boolean;
         review: boolean;
+        view_documents: boolean;
     };
     panelOptions: PanelOption[];
 }
@@ -107,6 +111,23 @@ const formatDate = (value: string | null) => {
     }
 
     return date.toLocaleString();
+};
+
+const toDatetimeLocalValue = (value: string | null) => {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const offsetInMs = date.getTimezoneOffset() * 60 * 1000;
+    const localDate = new Date(date.getTime() - offsetInMs);
+
+    return localDate.toISOString().slice(0, 16);
 };
 
 const STATUS_META: Record<
@@ -135,6 +156,29 @@ export default function ThesisTitleShow({
             })),
         [panelOptions],
     );
+
+    const proposalDefenseInputFromProps = useMemo(
+        () => toDatetimeLocalValue(thesisTitle.proposal_defense_at),
+        [thesisTitle.proposal_defense_at],
+    );
+
+    const finalDefenseInputFromProps = useMemo(
+        () => toDatetimeLocalValue(thesisTitle.final_defense_at),
+        [thesisTitle.final_defense_at],
+    );
+
+    const [proposalDefenseInput, setProposalDefenseInput] =
+        useState<string>(proposalDefenseInputFromProps);
+    const [finalDefenseInput, setFinalDefenseInput] =
+        useState<string>(finalDefenseInputFromProps);
+
+    useEffect(() => {
+        setProposalDefenseInput(proposalDefenseInputFromProps);
+    }, [proposalDefenseInputFromProps]);
+
+    useEffect(() => {
+        setFinalDefenseInput(finalDefenseInputFromProps);
+    }, [finalDefenseInputFromProps]);
 
     const panelStateFromProps = useMemo<PanelState>(
         () => ({
@@ -184,6 +228,20 @@ export default function ThesisTitleShow({
         ],
     );
 
+    const scheduleSummary = useMemo(
+        () => [
+            {
+                label: 'Proposal Defense',
+                value: formatDate(thesisTitle.proposal_defense_at),
+            },
+            {
+                label: 'Final Defense',
+                value: formatDate(thesisTitle.final_defense_at),
+            },
+        ],
+        [thesisTitle.proposal_defense_at, thesisTitle.final_defense_at],
+    );
+
     const updatePanelStateValue = (field: PanelStateKey) => (value: string) => {
         setPanelState((prev) => ({
             ...prev,
@@ -227,7 +285,7 @@ export default function ThesisTitleShow({
         : `Review ${thesisTitle.title} chapters.`;
     const hasMembers = thesisTitle.members.length > 0;
     const showLeaderInfo = !canManage && thesisTitle.leader !== null;
-    const canAccessPrimaryFiles = canManage || canReview;
+    const canAccessPrimaryFiles = permissions.view_documents;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -561,6 +619,150 @@ export default function ThesisTitleShow({
                         </CardContent>
                     </Card>
                 )}
+
+                <Card className="my-6">
+                    <CardHeader>
+                        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardTitle>Defense Schedule</CardTitle>
+                                <CardDescription>
+                                    {canReview
+                                        ? 'Set the proposal and final defense schedule for this thesis title.'
+                                        : 'Scheduled defense dates for this thesis title.'}
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent>
+                        {canReview ? (
+                            <Form
+                                {...ThesisTitleController.updateSchedule.form({
+                                    thesis_title: thesisTitle.id,
+                                })}
+                                options={{ preserveScroll: true }}
+                                className="space-y-6"
+                            >
+                                {({ processing, errors, recentlySuccessful }) => (
+                                    <>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="proposal_defense_at">
+                                                    Proposal Defense Date
+                                                </Label>
+                                                <Input
+                                                    id="proposal_defense_at"
+                                                    name="proposal_defense_at"
+                                                    type="datetime-local"
+                                                    value={proposalDefenseInput}
+                                                    onChange={(event) =>
+                                                        setProposalDefenseInput(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    aria-invalid={Boolean(
+                                                        errors.proposal_defense_at,
+                                                    )}
+                                                />
+                                                <InputError
+                                                    message={
+                                                        errors.proposal_defense_at
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="final_defense_at">
+                                                    Final Defense Date
+                                                </Label>
+                                                <Input
+                                                    id="final_defense_at"
+                                                    name="final_defense_at"
+                                                    type="datetime-local"
+                                                    value={finalDefenseInput}
+                                                    onChange={(event) =>
+                                                        setFinalDefenseInput(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    aria-invalid={Boolean(
+                                                        errors.final_defense_at,
+                                                    )}
+                                                />
+                                                <InputError
+                                                    message={
+                                                        errors.final_defense_at
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                                            <span>
+                                                Proposal:{' '}
+                                                <span className="text-foreground">
+                                                    {scheduleSummary[0].value}
+                                                </span>
+                                            </span>
+                                            <span>
+                                                Final:{' '}
+                                                <span className="text-foreground">
+                                                    {scheduleSummary[1].value}
+                                                </span>
+                                            </span>
+                                            {recentlySuccessful && (
+                                                <span className="text-primary">
+                                                    Saved!
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                            <div className="flex flex-col gap-2 sm:flex-row">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setProposalDefenseInput('');
+                                                        setFinalDefenseInput('');
+                                                    }}
+                                                    disabled={processing}
+                                                >
+                                                    Clear Dates
+                                                </Button>
+                                                <Button
+                                                    type="submit"
+                                                    disabled={processing}
+                                                >
+                                                    {processing ? (
+                                                        <>
+                                                            <Spinner />
+                                                            Saving...
+                                                        </>
+                                                    ) : (
+                                                        'Save Schedule'
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </Form>
+                        ) : (
+                            <dl className="grid gap-4 md:grid-cols-2">
+                                {scheduleSummary.map((item) => (
+                                    <div key={item.label}>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            {item.label}
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {item.value}
+                                        </dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        )}
+                    </CardContent>
+                </Card>
 
                 <Card className="my-6">
                     <CardHeader>

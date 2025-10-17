@@ -19,6 +19,13 @@ class ThesisTitle extends Model
         'title',
         'abstract_pdf',
         'endorsement_pdf',
+        'proposal_defense_at',
+        'final_defense_at',
+    ];
+
+    protected $casts = [
+        'proposal_defense_at' => 'datetime',
+        'final_defense_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

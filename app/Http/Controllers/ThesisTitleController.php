@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ThesisStatus;
 use App\Http\Requests\StoreThesisTitleRequest;
 use App\Http\Requests\UpdateThesisTitlePanelRequest;
+use App\Http\Requests\UpdateThesisTitleScheduleRequest;
 use App\Http\Requests\UpdateThesisTitleRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
@@ -149,6 +150,9 @@ class ThesisTitleController extends Controller
         $canManage = (int) $request->user()->id === (int) $thesisTitle->user_id;
         $canReview = $thesisTitle->adviser_id && (int) $request->user()->id === (int) $thesisTitle->adviser_id;
         $panel = $thesisTitle->panel;
+        $isMember = $thesisTitle->members->contains(
+            fn (User $member) => (int) $member->id === (int) $request->user()->id
+        );
         $teachers = collect();
 
         if ($canReview) {
@@ -179,6 +183,8 @@ class ThesisTitleController extends Controller
                     'id' => $member->id,
                     'name' => $member->name,
                 ]),
+                'proposal_defense_at' => optional($thesisTitle->proposal_defense_at)->toIso8601String(),
+                'final_defense_at' => optional($thesisTitle->final_defense_at)->toIso8601String(),
                 'created_at' => optional($thesisTitle->created_at)->toIso8601String(),
                 'theses' => $thesisTitle->theses->map(fn (Thesis $thesis) => [
                     'id' => $thesis->id,
@@ -207,6 +213,7 @@ class ThesisTitleController extends Controller
             'permissions' => [
                 'manage' => $canManage,
                 'review' => (bool) $canReview,
+                'view_documents' => (bool) ($canManage || $canReview || $isMember),
             ],
             'panelOptions' => $teachers,
         ]);
@@ -234,6 +241,15 @@ class ThesisTitleController extends Controller
         })->all();
 
         $thesisTitle->panel()->updateOrCreate([], $panel);
+
+        return redirect()->route('thesis-titles.show', $thesisTitle);
+    }
+
+    public function updateSchedule(UpdateThesisTitleScheduleRequest $request, ThesisTitle $thesisTitle): RedirectResponse
+    {
+        $this->ensureAdviser($request, $thesisTitle);
+
+        $thesisTitle->update($request->schedulePayload());
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
