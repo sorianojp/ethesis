@@ -11,6 +11,16 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -21,10 +31,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type SharedData } from '@/types';
-import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { Form, Head, Link, useForm, usePage } from '@inertiajs/react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 type ThesisStatus = 'pending' | 'approved' | 'rejected';
 
@@ -75,6 +86,7 @@ interface ThesisItem {
     thesis_pdf_url: string | null;
     created_at: string | null;
     status: ThesisStatus;
+    rejection_remark: string | null;
 }
 
 interface ThesisTitleShowProps {
@@ -139,6 +151,166 @@ const STATUS_META: Record<
     approved: { label: 'Approved', variant: 'default' },
     rejected: { label: 'Rejected', variant: 'destructive' },
 };
+
+interface ThesisRemarkDialogProps {
+    thesis: ThesisItem;
+}
+
+function ThesisRemarkDialog({ thesis }: ThesisRemarkDialogProps) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    if (!thesis.rejection_remark) {
+        return null;
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="link" className="px-0">
+                    View Remark
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>{thesis.chapter} – Remark</DialogTitle>
+                    <DialogDescription>
+                        This is the feedback submitted with the rejection.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-80 overflow-y-auto rounded-md border border-muted-foreground/20 bg-muted/40 p-3 text-sm break-words whitespace-pre-line text-foreground">
+                    {thesis.rejection_remark}
+                </div>
+                <DialogFooter className="gap-2 sm:justify-end">
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">
+                            Close
+                        </Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+interface RejectThesisDialogProps {
+    thesisTitleId: number;
+    thesis: ThesisItem;
+}
+
+function RejectThesisDialog({
+    thesisTitleId,
+    thesis,
+}: RejectThesisDialogProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { data, setData, post, processing, errors, reset, clearErrors } =
+        useForm<{ status: ThesisStatus; rejection_remark: string }>({
+            status: 'rejected',
+            rejection_remark: '',
+        });
+
+    const formDefinition = useMemo(
+        () =>
+            ThesisController.updateStatus.form({
+                thesis_title: thesisTitleId,
+                thesis: thesis.id,
+            }),
+        [thesisTitleId, thesis.id],
+    );
+
+    const handleOpenChange = (open: boolean) => {
+        setIsOpen(open);
+
+        if (open) {
+            setData('rejection_remark', thesis.rejection_remark ?? '');
+        } else {
+            reset('rejection_remark');
+        }
+
+        clearErrors();
+    };
+
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        post(formDefinition.action, {
+            preserveScroll: true,
+            onSuccess: () => {
+                reset('rejection_remark');
+                clearErrors();
+                setIsOpen(false);
+            },
+            onError: () => {
+                setIsOpen(true);
+            },
+        });
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={processing || thesis.status === 'rejected'}
+                >
+                    Reject
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Reject {thesis.chapter}</DialogTitle>
+                    <DialogDescription>
+                        Share a brief remark so the group knows what to fix.
+                    </DialogDescription>
+                </DialogHeader>
+                <form
+                    action={formDefinition.action}
+                    method="post"
+                    onSubmit={handleSubmit}
+                    className="space-y-4"
+                >
+                    <input type="hidden" name="status" value={data.status} />
+                    <div className="space-y-2">
+                        <Label htmlFor={`rejection_remark_${thesis.id}`}>
+                            Remark
+                        </Label>
+                        <Textarea
+                            id={`rejection_remark_${thesis.id}`}
+                            name="rejection_remark"
+                            value={data.rejection_remark}
+                            onChange={(event) =>
+                                setData('rejection_remark', event.target.value)
+                            }
+                            aria-invalid={Boolean(errors.rejection_remark)}
+                            placeholder="Explain why this chapter is being rejected."
+                            maxLength={1000}
+                            className="max-h-60"
+                            required
+                        />
+                        <InputError message={errors.rejection_remark} />
+                        <p className="text-xs text-muted-foreground">
+                            {data.rejection_remark.length} / 1000 characters
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2 sm:justify-end">
+                        <DialogClose asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={processing}
+                            >
+                                Cancel
+                            </Button>
+                        </DialogClose>
+                        <Button type="submit" disabled={processing}>
+                            Submit
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function ThesisTitleShow({
     thesisTitle,
@@ -373,6 +545,9 @@ export default function ThesisTitleShow({
                                                 Status
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                Remark
+                                            </th>
+                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                                 Uploaded
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -384,7 +559,7 @@ export default function ThesisTitleShow({
                                         {thesisTitle.theses.length === 0 && (
                                             <tr>
                                                 <td
-                                                    colSpan={4}
+                                                    colSpan={5}
                                                     className="px-6 py-10 text-center text-sm text-muted-foreground"
                                                 >
                                                     No thesis files yet.
@@ -392,189 +567,194 @@ export default function ThesisTitleShow({
                                             </tr>
                                         )}
 
-                                        {thesisTitle.theses.map((thesis) => (
-                                            <tr
-                                                key={thesis.id}
-                                                className="text-sm"
-                                            >
-                                                <td className="px-6 py-4 font-medium text-foreground">
-                                                    {thesis.thesis_pdf_url ? (
-                                                        <a
-                                                            href={
-                                                                thesis.thesis_pdf_url
-                                                            }
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="text-primary underline-offset-4 hover:underline"
-                                                        >
-                                                            {thesis.chapter}
-                                                        </a>
-                                                    ) : (
-                                                        thesis.chapter
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {(() => {
-                                                        const statusInfo =
-                                                            STATUS_META[
-                                                                thesis.status
-                                                            ] ??
-                                                            STATUS_META.pending;
+                                        {thesisTitle.theses.map((thesis) => {
+                                            const isStatusFinal =
+                                                thesis.status === 'approved' ||
+                                                thesis.status === 'rejected';
 
-                                                        return (
-                                                            <Badge
-                                                                variant={
-                                                                    statusInfo.variant
+                                            return (
+                                                <tr
+                                                    key={thesis.id}
+                                                    className="text-sm"
+                                                >
+                                                    <td className="px-6 py-4 font-medium text-foreground">
+                                                        {thesis.thesis_pdf_url ? (
+                                                            <a
+                                                                href={
+                                                                    thesis.thesis_pdf_url
                                                                 }
-                                                                className="px-3 py-1 text-xs tracking-wide uppercase"
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-primary underline-offset-4 hover:underline"
                                                             >
-                                                                {
-                                                                    statusInfo.label
-                                                                }
-                                                            </Badge>
-                                                        );
-                                                    })()}
-                                                </td>
-                                                <td className="px-6 py-4 text-muted-foreground">
-                                                    {formatDate(
-                                                        thesis.created_at,
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {canManage ? (
-                                                        <div className="flex items-center gap-3">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                asChild
-                                                            >
-                                                                <Link
-                                                                    href={
-                                                                        ThesisController.edit(
-                                                                            {
-                                                                                thesis_title:
-                                                                                    thesisTitle.id,
-                                                                                thesis: thesis.id,
-                                                                            },
-                                                                        ).url
+                                                                {thesis.chapter}
+                                                            </a>
+                                                        ) : (
+                                                            thesis.chapter
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {(() => {
+                                                            const statusInfo =
+                                                                STATUS_META[
+                                                                    thesis
+                                                                        .status
+                                                                ] ??
+                                                                STATUS_META.pending;
+
+                                                            return (
+                                                                <Badge
+                                                                    variant={
+                                                                        statusInfo.variant
                                                                     }
-                                                                    prefetch
+                                                                    className="px-3 py-1 text-xs tracking-wide uppercase"
                                                                 >
-                                                                    Edit
-                                                                </Link>
-                                                            </Button>
-                                                            <Form
-                                                                {...ThesisController.destroy.form(
                                                                     {
-                                                                        thesis_title:
-                                                                            thesisTitle.id,
-                                                                        thesis: thesis.id,
-                                                                    },
-                                                                )}
-                                                                onSubmit={(
-                                                                    event,
-                                                                ) => {
-                                                                    if (
-                                                                        !window.confirm(
-                                                                            'Delete this thesis file? This action cannot be undone.',
-                                                                        )
-                                                                    ) {
-                                                                        event.preventDefault();
+                                                                        statusInfo.label
                                                                     }
-                                                                }}
-                                                            >
-                                                                {({
-                                                                    processing,
-                                                                }) => (
+                                                                </Badge>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-left">
+                                                        {thesis.status ===
+                                                            'rejected' &&
+                                                        thesis.rejection_remark ? (
+                                                            <ThesisRemarkDialog
+                                                                thesis={thesis}
+                                                            />
+                                                        ) : (
+                                                            '—'
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-muted-foreground">
+                                                        {formatDate(
+                                                            thesis.created_at,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {canManage ? (
+                                                            <div className="flex items-center gap-3">
+                                                                {isStatusFinal ? (
                                                                     <Button
-                                                                        type="submit"
+                                                                        variant="outline"
                                                                         size="sm"
-                                                                        variant="destructive"
-                                                                        disabled={
-                                                                            processing
-                                                                        }
+                                                                        disabled
                                                                     >
-                                                                        Delete
+                                                                        Edit
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        asChild
+                                                                    >
+                                                                        <Link
+                                                                            href={
+                                                                                ThesisController.edit(
+                                                                                    {
+                                                                                        thesis_title:
+                                                                                            thesisTitle.id,
+                                                                                        thesis: thesis.id,
+                                                                                    },
+                                                                                )
+                                                                                    .url
+                                                                            }
+                                                                            prefetch
+                                                                        >
+                                                                            Edit
+                                                                        </Link>
                                                                     </Button>
                                                                 )}
-                                                            </Form>
-                                                        </div>
-                                                    ) : canReview ? (
-                                                        <div className="flex items-center gap-3">
-                                                            <Form
-                                                                {...ThesisController.updateStatus.form(
-                                                                    {
-                                                                        thesis_title:
-                                                                            thesisTitle.id,
-                                                                        thesis: thesis.id,
-                                                                    },
-                                                                )}
-                                                            >
-                                                                {({
-                                                                    processing,
-                                                                }) => (
-                                                                    <>
-                                                                        <input
-                                                                            type="hidden"
-                                                                            name="status"
-                                                                            value="approved"
-                                                                        />
-                                                                        <Button
-                                                                            type="submit"
-                                                                            size="sm"
-                                                                            disabled={
-                                                                                processing ||
-                                                                                thesis.status ===
-                                                                                    'approved'
-                                                                            }
-                                                                        >
-                                                                            Approve
-                                                                        </Button>
-                                                                    </>
-                                                                )}
-                                                            </Form>
-                                                            <Form
-                                                                {...ThesisController.updateStatus.form(
-                                                                    {
-                                                                        thesis_title:
-                                                                            thesisTitle.id,
-                                                                        thesis: thesis.id,
-                                                                    },
-                                                                )}
-                                                            >
-                                                                {({
-                                                                    processing,
-                                                                }) => (
-                                                                    <>
-                                                                        <input
-                                                                            type="hidden"
-                                                                            name="status"
-                                                                            value="rejected"
-                                                                        />
+                                                                <Form
+                                                                    {...ThesisController.destroy.form(
+                                                                        {
+                                                                            thesis_title:
+                                                                                thesisTitle.id,
+                                                                            thesis: thesis.id,
+                                                                        },
+                                                                    )}
+                                                                    onSubmit={(
+                                                                        event,
+                                                                    ) => {
+                                                                        if (
+                                                                            !window.confirm(
+                                                                                'Delete this thesis file? This action cannot be undone.',
+                                                                            )
+                                                                        ) {
+                                                                            event.preventDefault();
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {({
+                                                                        processing,
+                                                                    }) => (
                                                                         <Button
                                                                             type="submit"
                                                                             size="sm"
                                                                             variant="destructive"
                                                                             disabled={
                                                                                 processing ||
-                                                                                thesis.status ===
-                                                                                    'rejected'
+                                                                                isStatusFinal
                                                                             }
                                                                         >
-                                                                            Reject
+                                                                            Delete
                                                                         </Button>
-                                                                    </>
-                                                                )}
-                                                            </Form>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-sm text-muted-foreground">
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                                    )}
+                                                                </Form>
+                                                            </div>
+                                                        ) : canReview ? (
+                                                            <div className="flex items-center gap-3">
+                                                                <Form
+                                                                    {...ThesisController.updateStatus.form(
+                                                                        {
+                                                                            thesis_title:
+                                                                                thesisTitle.id,
+                                                                            thesis: thesis.id,
+                                                                        },
+                                                                    )}
+                                                                >
+                                                                    {({
+                                                                        processing,
+                                                                    }) => (
+                                                                        <>
+                                                                            <input
+                                                                                type="hidden"
+                                                                                name="status"
+                                                                                value="approved"
+                                                                            />
+                                                                            <Button
+                                                                                type="submit"
+                                                                                size="sm"
+                                                                                disabled={
+                                                                                    processing ||
+                                                                                    thesis.status ===
+                                                                                        'approved'
+                                                                                }
+                                                                            >
+                                                                                Approve
+                                                                            </Button>
+                                                                        </>
+                                                                    )}
+                                                                </Form>
+                                                                <RejectThesisDialog
+                                                                    thesisTitleId={
+                                                                        thesisTitle.id
+                                                                    }
+                                                                    thesis={
+                                                                        thesis
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-muted-foreground">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>

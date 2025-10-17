@@ -6,7 +6,7 @@ import { Head, Link } from '@inertiajs/react';
 
 const breadcrumbs = [
     {
-        title: 'Thesis',
+        title: 'Advisees',
         href: ThesisTitleController.advisees().url,
     },
 ];

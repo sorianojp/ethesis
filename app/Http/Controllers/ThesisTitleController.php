@@ -194,6 +194,7 @@ class ThesisTitleController extends Controller
                     'status' => $thesis->status instanceof ThesisStatus
                         ? $thesis->status->value
                         : ($thesis->status ?? ThesisStatus::PENDING->value),
+                    'rejection_remark' => $thesis->rejection_remark,
                 ]),
                 'panel' => [
                     'chairman' => $panel && $panel->chairman ? [

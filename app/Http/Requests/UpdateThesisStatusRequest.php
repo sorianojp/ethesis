@@ -25,6 +25,12 @@ class UpdateThesisStatusRequest extends FormRequest
     {
         return [
             'status' => ['required', Rule::in(ThesisStatus::values())],
+            'rejection_remark' => [
+                'nullable',
+                'string',
+                'max:1000',
+                'required_if:status,rejected',
+            ],
         ];
     }
 
@@ -35,5 +41,14 @@ class UpdateThesisStatusRequest extends FormRequest
         $status = $validated['status'] ?? null;
 
         return $status instanceof ThesisStatus ? $status : ThesisStatus::from($status);
+    }
+
+    public function rejectionRemark(): ?string
+    {
+        $validated = $this->validated();
+
+        $remark = $validated['rejection_remark'] ?? null;
+
+        return $remark !== null ? trim($remark) : null;
     }
 }

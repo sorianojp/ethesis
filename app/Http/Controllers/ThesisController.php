@@ -113,8 +113,11 @@ class ThesisController extends Controller
         $this->ensureAdviser($request, $thesisTitle);
         $this->ensureThesisBelongsToTitle($thesisTitle, $thesis);
 
+        $status = $request->status();
+
         $thesis->update([
-            'status' => $request->status(),
+            'status' => $status,
+            'rejection_remark' => $status === ThesisStatus::REJECTED ? $request->rejectionRemark() : null,
         ]);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);

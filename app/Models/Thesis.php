@@ -16,6 +16,7 @@ class Thesis extends Model
         'chapter',
         'thesis_pdf',
         'status',
+        'rejection_remark',
     ];
 
     protected $casts = [
