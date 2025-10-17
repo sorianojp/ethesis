@@ -16,8 +16,6 @@ interface ThesisTitleListItem {
     title: string;
     adviser: { id: number; name: string } | null;
     theses_count: number;
-    abstract_pdf_url: string | null;
-    endorsement_pdf_url: string | null;
     created_at: string | null;
 }
 
@@ -99,12 +97,6 @@ export default function ThesisTitleIndex({
                                         Chapters
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                        Abstract
-                                    </th>
-                                    <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                        Endorsement
-                                    </th>
-                                    <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                         Created
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -116,7 +108,7 @@ export default function ThesisTitleIndex({
                                 {thesisTitles.data.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={7}
+                                            colSpan={5}
                                             className="px-6 py-10 text-center text-sm text-muted-foreground"
                                         >
                                             No thesis yet. Create one to get
@@ -135,54 +127,6 @@ export default function ThesisTitleIndex({
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {item.theses_count}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {item.abstract_pdf_url ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    className="px-3 text-sm font-medium"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={
-                                                            item.abstract_pdf_url
-                                                        }
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        View
-                                                    </a>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">
-                                                    —
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {item.endorsement_pdf_url ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    className="px-3 text-sm font-medium"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={
-                                                            item.endorsement_pdf_url
-                                                        }
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        View
-                                                    </a>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">
-                                                    —
-                                                </span>
-                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {formatDate(item.created_at)}

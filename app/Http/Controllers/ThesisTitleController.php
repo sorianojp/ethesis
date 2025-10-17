@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ThesisStatus;
 use App\Http\Requests\StoreThesisTitleRequest;
+use App\Http\Requests\UpdateThesisTitlePanelRequest;
 use App\Http\Requests\UpdateThesisTitleRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
@@ -139,11 +140,26 @@ class ThesisTitleController extends Controller
             'theses' => fn ($query) => $query->latest(),
             'adviser',
             'members',
+            'panel.chairman',
+            'panel.memberOne',
+            'panel.memberTwo',
             'user',
         ]);
 
         $canManage = (int) $request->user()->id === (int) $thesisTitle->user_id;
         $canReview = $thesisTitle->adviser_id && (int) $request->user()->id === (int) $thesisTitle->adviser_id;
+        $panel = $thesisTitle->panel;
+        $teachers = collect();
+
+        if ($canReview) {
+            $teachersQuery = User::teachers()->orderBy('name');
+
+            if ($thesisTitle->adviser_id) {
+                $teachersQuery->whereKeyNot($thesisTitle->adviser_id);
+            }
+
+            $teachers = $teachersQuery->get(['id', 'name']);
+        }
 
         return Inertia::render('thesis-titles/show', [
             'thesisTitle' => [
@@ -173,12 +189,53 @@ class ThesisTitleController extends Controller
                         ? $thesis->status->value
                         : ($thesis->status ?? ThesisStatus::PENDING->value),
                 ]),
+                'panel' => [
+                    'chairman' => $panel && $panel->chairman ? [
+                        'id' => $panel->chairman->id,
+                        'name' => $panel->chairman->name,
+                    ] : null,
+                    'member_one' => $panel && $panel->memberOne ? [
+                        'id' => $panel->memberOne->id,
+                        'name' => $panel->memberOne->name,
+                    ] : null,
+                    'member_two' => $panel && $panel->memberTwo ? [
+                        'id' => $panel->memberTwo->id,
+                        'name' => $panel->memberTwo->name,
+                    ] : null,
+                ],
             ],
             'permissions' => [
                 'manage' => $canManage,
                 'review' => (bool) $canReview,
             ],
+            'panelOptions' => $teachers,
         ]);
+    }
+
+    public function updatePanel(UpdateThesisTitlePanelRequest $request, ThesisTitle $thesisTitle): RedirectResponse
+    {
+        $this->ensureAdviser($request, $thesisTitle);
+
+        $panelMembers = $request->panelMembers();
+
+        $panel = [
+            'chairman_id' => $this->resolvePanelMemberId($panelMembers['chairman_id'], 'chairman_id'),
+            'member_one_id' => $this->resolvePanelMemberId($panelMembers['member_one_id'], 'member_one_id'),
+            'member_two_id' => $this->resolvePanelMemberId($panelMembers['member_two_id'], 'member_two_id'),
+        ];
+
+        // Remove adviser if they were assigned and avoid duplicates.
+        $panel = collect($panel)->map(function ($value) use ($thesisTitle) {
+            if ($value && $value === (int) $thesisTitle->adviser_id) {
+                return null;
+            }
+
+            return $value;
+        })->all();
+
+        $thesisTitle->panel()->updateOrCreate([], $panel);
+
+        return redirect()->route('thesis-titles.show', $thesisTitle);
     }
 
     public function edit(Request $request, ThesisTitle $thesisTitle): Response
@@ -375,6 +432,34 @@ class ThesisTitleController extends Controller
         abort_unless($this->userIsTeacher($user), 403);
     }
 
+    private function ensureAdviser(Request $request, ThesisTitle $thesisTitle): void
+    {
+        $user = $request->user();
+        abort_unless(
+            $user
+            && $thesisTitle->adviser_id
+            && (int) $user->id === (int) $thesisTitle->adviser_id,
+            403
+        );
+    }
+
+    private function resolvePanelMemberId(?int $userId, string $field): ?int
+    {
+        if (! $userId) {
+            return null;
+        }
+
+        $teacher = User::teachers()->find($userId);
+
+        if (! $teacher) {
+            throw ValidationException::withMessages([
+                $field => __('Selected panel member must be a teacher.'),
+            ]);
+        }
+
+        return $teacher->id;
+    }
+
     private function userIsTeacher(?User $user): bool
     {
         return $this->userHasRole($user, 'Teacher');
@@ -465,5 +550,4 @@ class ThesisTitleController extends Controller
 
         return $adviser;
     }
-
 }
