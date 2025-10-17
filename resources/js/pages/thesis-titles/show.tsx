@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { Form, Head, Link } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -583,9 +584,14 @@ export default function ThesisTitleShow({
                                 {...ThesisTitleController.updatePanel.form({
                                     thesis_title: thesisTitle.id,
                                 })}
+                                options={{ preserveScroll: true }}
                                 className="space-y-4" // Removed 'mt-4' as CardHeader provides appropriate vertical spacing
                             >
-                                {({ processing, errors }) => (
+                                {({
+                                    processing,
+                                    errors,
+                                    recentlySuccessful,
+                                }) => (
                                     <>
                                         <div className="grid gap-4 md:grid-cols-3">
                                             {PANEL_FIELDS.map(
@@ -679,14 +685,24 @@ export default function ThesisTitleShow({
                                             </p>
                                         )}
 
-                                        <div className="flex justify-end pt-4">
-                                            {' '}
-                                            {/* Added padding top for separation */}
+                                        <div className="flex items-center justify-end gap-3 pt-4">
+                                            {recentlySuccessful && (
+                                                <span className="text-sm text-muted-foreground">
+                                                    Assigned!
+                                                </span>
+                                            )}
                                             <Button
                                                 type="submit"
                                                 disabled={processing}
                                             >
-                                                Save Panel
+                                                {processing ? (
+                                                    <>
+                                                        <Spinner />
+                                                        Assigning...
+                                                    </>
+                                                ) : (
+                                                    'Assign Panel'
+                                                )}
                                             </Button>
                                         </div>
                                     </>
