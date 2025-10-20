@@ -153,6 +153,10 @@ interface ThesisTitleShowProps {
             proposal: string;
             final: string;
         };
+        approval_forms: {
+            undergrad: string;
+            postgrad: string;
+        };
         theses: ThesisItem[];
         members: { id: number; name: string }[];
         panel: PanelAssignments;
@@ -736,13 +740,15 @@ export default function ThesisTitleShow({
             return thesisSource.post_grad ? 'Postgrad' : 'Undergrad';
         }
 
-        const rawStudent = (auth.user as Record<string, unknown> | undefined)?.student;
+        const rawStudent = (auth.user as Record<string, unknown> | undefined)
+            ?.student;
 
         if (rawStudent && typeof rawStudent === 'object') {
             const course = (rawStudent as Record<string, unknown>).course;
 
             if (course && typeof course === 'object') {
-                const postGradValue = (course as Record<string, unknown>).post_grad;
+                const postGradValue = (course as Record<string, unknown>)
+                    .post_grad;
 
                 if (typeof postGradValue === 'number') {
                     return postGradValue === 1 ? 'Postgrad' : 'Undergrad';
@@ -778,6 +784,7 @@ export default function ThesisTitleShow({
         [panelOptions],
     );
 
+    const approvalForms = thesisTitle.approval_forms;
     const proposalDefenseInputFromProps = useMemo(
         () => toDatetimeLocalValue(thesisTitle.proposal_defense_at),
         [thesisTitle.proposal_defense_at],
@@ -877,6 +884,21 @@ export default function ThesisTitleShow({
 
     const panelOptionsEmpty = panelOptionsList.length === 0;
 
+    const hasApprovalForms =
+        Boolean(approvalForms.undergrad) || Boolean(approvalForms.postgrad);
+    const recommendedForm =
+        programLevel === 'Postgrad'
+            ? 'postgrad'
+            : programLevel === 'Undergrad'
+              ? 'undergrad'
+              : null;
+    const recommendedFormLabel =
+        recommendedForm === 'postgrad'
+            ? 'Postgraduate'
+            : recommendedForm === 'undergrad'
+              ? 'Undergraduate'
+              : null;
+
     const breadcrumbs = canManage
         ? [
               {
@@ -936,7 +958,8 @@ export default function ThesisTitleShow({
                             <CardHeader>
                                 <CardTitle>Thesis Details</CardTitle>
                                 <CardDescription>
-                                    Snapshot of the project team and adviser assignments.
+                                    Snapshot of the project team and adviser
+                                    assignments.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -945,19 +968,25 @@ export default function ThesisTitleShow({
                                         <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             Leader
                                         </dt>
-                                        <dd className="mt-1">{leaderDisplayName}</dd>
+                                        <dd className="mt-1">
+                                            {leaderDisplayName}
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             Adviser
                                         </dt>
-                                        <dd className="mt-1">{adviserDisplayName}</dd>
+                                        <dd className="mt-1">
+                                            {adviserDisplayName}
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             Members
                                         </dt>
-                                        <dd className="mt-1">{membersDisplayName}</dd>
+                                        <dd className="mt-1">
+                                            {membersDisplayName}
+                                        </dd>
                                     </div>
                                     <div>
                                         <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -974,494 +1003,786 @@ export default function ThesisTitleShow({
 
                     <section className="space-y-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <h2 className="text-base font-semibold text-foreground">
-                                    Thesis Files
-                                </h2>
-                                {canManage && (
-                                    <Button asChild>
-                                        <Link
-                                            href={ThesisController.create({
+                            <h2 className="text-base font-semibold text-foreground">
+                                Thesis Files
+                            </h2>
+                            {canManage && (
+                                <Button asChild>
+                                    <Link
+                                        href={
+                                            ThesisController.create({
                                                 thesis_title: thesisTitle.id,
-                                            }).url}
-                                            prefetch
-                                        >
-                                            Upload
-                                        </Link>
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
-                                <table className="min-w-full divide-y divide-border">
-                                    <thead className="bg-muted/50">
-                                            <tr className="text-left text-sm font-semibold text-muted-foreground">
-                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                    Chapter/Other File
-                                                </th>
-                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                    Program Level
-                                                </th>
-                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                    Status
-                                                </th>
-                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                    Remark
-                                                </th>
-                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Plagiarism Score
-                                            </th>
-                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Uploaded
-                                            </th>
-                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Actions
-                                            </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border">
-                                            {thesisTitle.theses.length === 0 && (
-                                                <tr>
-                                                    <td
-                                                        colSpan={7}
-                                                        className="px-6 py-10 text-center text-sm text-muted-foreground"
-                                                    >
-                                                        No thesis files yet.
-                                                    </td>
-                                                </tr>
-                                            )}
+                                            }).url
+                                        }
+                                        prefetch
+                                    >
+                                        Upload
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+                        <div className="overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
+                            <table className="min-w-full divide-y divide-border">
+                                <thead className="bg-muted/50">
+                                    <tr className="text-left text-sm font-semibold text-muted-foreground">
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Chapter/Other File
+                                        </th>
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Program Level
+                                        </th>
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Status
+                                        </th>
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Remark
+                                        </th>
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Plagiarism Score
+                                        </th>
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Uploaded
+                                        </th>
+                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {thesisTitle.theses.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={7}
+                                                className="px-6 py-10 text-center text-sm text-muted-foreground"
+                                            >
+                                                No thesis files yet.
+                                            </td>
+                                        </tr>
+                                    )}
 
-                                            {thesisTitle.theses.map((thesis) => {
-                                                const thesisProgramLevel = thesis.post_grad
-                                                    ? 'Postgrad'
-                                                    : 'Undergrad';
-                                                const isStatusFinal =
-                                                thesis.status === 'approved' ||
-                                                thesis.status === 'rejected';
+                                    {thesisTitle.theses.map((thesis) => {
+                                        const thesisProgramLevel =
+                                            thesis.post_grad
+                                                ? 'Postgrad'
+                                                : 'Undergrad';
+                                        const isStatusFinal =
+                                            thesis.status === 'approved' ||
+                                            thesis.status === 'rejected';
 
-                                            return (
-                                                <tr
-                                                    key={thesis.id}
-                                                    className="text-sm"
-                                                >
-                                                    <td className="px-6 py-4 font-medium text-foreground">
-                                                        {thesis.thesis_pdf_url ? (
-                                                            <a
-                                                                href={
-                                                                    thesis.thesis_pdf_url
+                                        return (
+                                            <tr
+                                                key={thesis.id}
+                                                className="text-sm"
+                                            >
+                                                <td className="px-6 py-4 font-medium text-foreground">
+                                                    {thesis.thesis_pdf_url ? (
+                                                        <a
+                                                            href={
+                                                                thesis.thesis_pdf_url
+                                                            }
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-primary underline-offset-4 hover:underline"
+                                                        >
+                                                            {thesis.chapter}
+                                                        </a>
+                                                    ) : (
+                                                        thesis.chapter
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-muted-foreground">
+                                                    {thesisProgramLevel}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {(() => {
+                                                        const statusInfo =
+                                                            STATUS_META[
+                                                                thesis.status
+                                                            ] ??
+                                                            STATUS_META.pending;
+
+                                                        return (
+                                                            <Badge
+                                                                variant={
+                                                                    statusInfo.variant
                                                                 }
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="text-primary underline-offset-4 hover:underline"
+                                                                className="px-3 py-1 text-xs tracking-wide uppercase"
                                                             >
-                                                                {thesis.chapter}
-                                                            </a>
-                                                        ) : (
-                                                            thesis.chapter
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-muted-foreground">
-                                                        {thesisProgramLevel}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {(() => {
-                                                            const statusInfo =
-                                                                STATUS_META[
-                                                                    thesis
-                                                                        .status
-                                                                ] ??
-                                                                STATUS_META.pending;
-
-                                                            return (
-                                                                <Badge
-                                                                    variant={
-                                                                        statusInfo.variant
-                                                                    }
-                                                                    className="px-3 py-1 text-xs tracking-wide uppercase"
-                                                                >
-                                                                    {
-                                                                        statusInfo.label
-                                                                    }
-                                                                </Badge>
-                                                            );
-                                                        })()}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {thesis.rejection_remark ? (
-                                                            <ThesisRemarkDialog
-                                                                thesis={thesis}
-                                                            />
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                —
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {thesis.plagiarism_scan ? (
-                                                            <PlagiarismScanDialog
-                                                                scan={
-                                                                    thesis.plagiarism_scan
+                                                                {
+                                                                    statusInfo.label
                                                                 }
-                                                            />
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                —
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-muted-foreground">
-                                                        {formatDate(
-                                                            thesis.created_at,
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {canManage ? (
-                                                            <div className="flex items-center gap-3">
-                                                                {isStatusFinal ? (
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        disabled
+                                                            </Badge>
+                                                        );
+                                                    })()}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {thesis.rejection_remark ? (
+                                                        <ThesisRemarkDialog
+                                                            thesis={thesis}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {thesis.plagiarism_scan ? (
+                                                        <PlagiarismScanDialog
+                                                            scan={
+                                                                thesis.plagiarism_scan
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-muted-foreground">
+                                                    {formatDate(
+                                                        thesis.created_at,
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {canManage ? (
+                                                        <div className="flex items-center gap-3">
+                                                            {isStatusFinal ? (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    disabled
+                                                                >
+                                                                    Edit
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={
+                                                                            ThesisController.edit(
+                                                                                {
+                                                                                    thesis_title:
+                                                                                        thesisTitle.id,
+                                                                                    thesis: thesis.id,
+                                                                                },
+                                                                            )
+                                                                                .url
+                                                                        }
+                                                                        prefetch
                                                                     >
                                                                         Edit
-                                                                    </Button>
-                                                                ) : (
+                                                                    </Link>
+                                                                </Button>
+                                                            )}
+                                                            <Form
+                                                                {...ThesisController.destroy.form(
+                                                                    {
+                                                                        thesis_title:
+                                                                            thesisTitle.id,
+                                                                        thesis: thesis.id,
+                                                                    },
+                                                                )}
+                                                                onSubmit={(
+                                                                    event,
+                                                                ) => {
+                                                                    if (
+                                                                        !window.confirm(
+                                                                            'Delete this thesis file? This action cannot be undone.',
+                                                                        )
+                                                                    ) {
+                                                                        event.preventDefault();
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {({
+                                                                    processing,
+                                                                }) => (
                                                                     <Button
-                                                                        variant="outline"
+                                                                        type="submit"
                                                                         size="sm"
-                                                                        asChild
+                                                                        variant="destructive"
+                                                                        disabled={
+                                                                            processing ||
+                                                                            isStatusFinal
+                                                                        }
                                                                     >
-                                                                        <Link
-                                                                            href={
-                                                                                ThesisController.edit(
-                                                                                    {
-                                                                                        thesis_title:
-                                                                                            thesisTitle.id,
-                                                                                        thesis: thesis.id,
-                                                                                    },
-                                                                                )
-                                                                                    .url
-                                                                            }
-                                                                            prefetch
-                                                                        >
-                                                                            Edit
-                                                                        </Link>
+                                                                        Delete
                                                                     </Button>
                                                                 )}
-                                                                <Form
-                                                                    {...ThesisController.destroy.form(
-                                                                        {
-                                                                            thesis_title:
-                                                                                thesisTitle.id,
-                                                                            thesis: thesis.id,
-                                                                        },
-                                                                    )}
-                                                                    onSubmit={(
-                                                                        event,
-                                                                    ) => {
-                                                                        if (
-                                                                            !window.confirm(
-                                                                                'Delete this thesis file? This action cannot be undone.',
-                                                                            )
-                                                                        ) {
-                                                                            event.preventDefault();
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {({
-                                                                        processing,
-                                                                    }) => (
+                                                            </Form>
+                                                        </div>
+                                                    ) : canReview ? (
+                                                        <div className="flex items-center gap-3">
+                                                            <Form
+                                                                {...ThesisController.updateStatus.form(
+                                                                    {
+                                                                        thesis_title:
+                                                                            thesisTitle.id,
+                                                                        thesis: thesis.id,
+                                                                    },
+                                                                )}
+                                                            >
+                                                                {({
+                                                                    processing,
+                                                                }) => (
+                                                                    <>
+                                                                        <input
+                                                                            type="hidden"
+                                                                            name="status"
+                                                                            value="approved"
+                                                                        />
                                                                         <Button
                                                                             type="submit"
                                                                             size="sm"
-                                                                            variant="destructive"
                                                                             disabled={
                                                                                 processing ||
-                                                                                isStatusFinal
+                                                                                thesis.status ===
+                                                                                    'approved'
                                                                             }
                                                                         >
-                                                                            Delete
+                                                                            Approve
                                                                         </Button>
-                                                                    )}
-                                                                </Form>
-                                                            </div>
-                                                        ) : canReview ? (
-                                                            <div className="flex items-center gap-3">
-                                                                <Form
-                                                                    {...ThesisController.updateStatus.form(
-                                                                        {
-                                                                            thesis_title:
-                                                                                thesisTitle.id,
-                                                                            thesis: thesis.id,
-                                                                        },
-                                                                    )}
-                                                                >
-                                                                    {({
-                                                                        processing,
-                                                                    }) => (
-                                                                        <>
-                                                                            <input
-                                                                                type="hidden"
-                                                                                name="status"
-                                                                                value="approved"
-                                                                            />
-                                                                            <Button
-                                                                                type="submit"
-                                                                                size="sm"
-                                                                                disabled={
-                                                                                    processing ||
-                                                                                    thesis.status ===
-                                                                                        'approved'
-                                                                                }
-                                                                            >
-                                                                                Approve
-                                                                            </Button>
-                                                                        </>
-                                                                    )}
-                                                                </Form>
-                                                                <RejectThesisDialog
-                                                                    thesisTitleId={
-                                                                        thesisTitle.id
-                                                                    }
-                                                                    thesis={
-                                                                        thesis
-                                                                    }
-                                                                />
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                —
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                                    </>
+                                                                )}
+                                                            </Form>
+                                                            <RejectThesisDialog
+                                                                thesisTitleId={
+                                                                    thesisTitle.id
+                                                                }
+                                                                thesis={thesis}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </section>
                     {canAccessPrimaryFiles && (
-                            <div className="grid gap-6 lg:grid-cols-2">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Thesis Documents</CardTitle>
-                                        <CardDescription>
-                                            Access the uploaded abstract and endorsement files.
-                                        </CardDescription>
-                                    </CardHeader>
-
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 gap-4">
-                                            {thesisTitle.abstract_pdf_url ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-sm font-medium"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={thesisTitle.abstract_pdf_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        Abstract
-                                                    </a>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">
-                                                    No abstract uploaded.
-                                                </span>
-                                            )}
-
-                                            {thesisTitle.endorsement_pdf_url ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-sm font-medium"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={thesisTitle.endorsement_pdf_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        Endorsement
-                                                    </a>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">
-                                                    No endorsement uploaded.
-                                                </span>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Certificates</CardTitle>
-                                        <CardDescription>
-                                            Download eligibility certificates for scheduled defenses.
-                                        </CardDescription>
-                                    </CardHeader>
-
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 gap-4">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="text-sm font-medium"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={thesisTitle.certificates.proposal}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    Proposal Defense
-                                                </a>
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="text-sm font-medium"
-                                                asChild
-                                            >
-                                                <a
-                                                    href={thesisTitle.certificates.final}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    Final Defense
-                                                </a>
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
-                    <div className="grid gap-6 lg:grid-cols-2">
+                        <div className="grid gap-6 lg:grid-cols-3">
                             <Card>
                                 <CardHeader>
-                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                        <div>
-                                            <CardTitle>Defense Schedule</CardTitle>
-                                            <CardDescription>
-                                                {canReview
-                                                    ? 'Set the proposal and final defense schedule for this thesis title.'
-                                                    : 'Scheduled defense dates for this thesis title.'}
-                                            </CardDescription>
-                                        </div>
-                                    </div>
+                                    <CardTitle>Thesis Documents</CardTitle>
+                                    <CardDescription>
+                                        Access the uploaded abstract and
+                                        endorsement files.
+                                    </CardDescription>
                                 </CardHeader>
 
                                 <CardContent>
-                                    {canReview ? (
-                                        <Form
-                                            {...ThesisTitleController.updateSchedule.form(
-                                                {
-                                                    thesis_title: thesisTitle.id,
-                                                },
-                                            )}
-                                            options={{ preserveScroll: true }}
-                                            className="space-y-6"
-                                        >
-                                            {({
-                                                processing,
-                                                errors,
-                                                recentlySuccessful,
-                                            }) => (
-                                                <>
-                                                    <div className="grid gap-4">
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="proposal_defense_at">
-                                                                Proposal Defense Date
-                                                            </Label>
-                                                            <Input
-                                                                id="proposal_defense_at"
-                                                                name="proposal_defense_at"
-                                                                type="datetime-local"
-                                                                value={proposalDefenseInput}
-                                                                onChange={(event) =>
-                                                                    setProposalDefenseInput(
-                                                                        event.target.value,
-                                                                    )
-                                                                }
-                                                                aria-invalid={Boolean(
-                                                                    errors.proposal_defense_at,
-                                                                )}
-                                                            />
-                                                            <InputError
-                                                                message={
-                                                                    errors.proposal_defense_at
-                                                                }
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="final_defense_at">
-                                                                Final Defense Date
-                                                            </Label>
-                                                            <Input
-                                                                id="final_defense_at"
-                                                                name="final_defense_at"
-                                                                type="datetime-local"
-                                                                value={finalDefenseInput}
-                                                                onChange={(event) =>
-                                                                    setFinalDefenseInput(
-                                                                        event.target.value,
-                                                                    )
-                                                                }
-                                                                aria-invalid={Boolean(
-                                                                    errors.final_defense_at,
-                                                                )}
-                                                            />
-                                                            <InputError
-                                                                message={
-                                                                    errors.final_defense_at
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {thesisTitle.abstract_pdf_url ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-sm font-medium"
+                                                asChild
+                                            >
+                                                <a
+                                                    href={
+                                                        thesisTitle.abstract_pdf_url
+                                                    }
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    Abstract
+                                                </a>
+                                            </Button>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">
+                                                No abstract uploaded.
+                                            </span>
+                                        )}
 
-                                                    <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                                                        {recentlySuccessful && (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                Saved!
+                                        {thesisTitle.endorsement_pdf_url ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-sm font-medium"
+                                                asChild
+                                            >
+                                                <a
+                                                    href={
+                                                        thesisTitle.endorsement_pdf_url
+                                                    }
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    Endorsement
+                                                </a>
+                                            </Button>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">
+                                                No endorsement uploaded.
+                                            </span>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Certificates</CardTitle>
+                                    <CardDescription>
+                                        Download eligibility certificates for
+                                        scheduled defenses.
+                                    </CardDescription>
+                                </CardHeader>
+
+                                <CardContent>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-sm font-medium"
+                                            asChild
+                                        >
+                                            <a
+                                                href={
+                                                    thesisTitle.certificates
+                                                        .proposal
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Proposal Defense
+                                            </a>
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-sm font-medium"
+                                            asChild
+                                        >
+                                            <a
+                                                href={
+                                                    thesisTitle.certificates
+                                                        .final
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Final Defense
+                                            </a>
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            {hasApprovalForms && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Approval Forms</CardTitle>
+                                        <CardDescription>
+                                            Download the approval sheet template
+                                            required for submission.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {approvalForms.undergrad && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-sm font-medium"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={
+                                                            approvalForms.undergrad
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Undergraduate Form
+                                                        {recommendedForm ===
+                                                            'undergrad' && (
+                                                            <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                                Recommended
                                                             </span>
                                                         )}
-                                                        <div className="flex flex-col gap-3 sm:flex-row">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                onClick={() => {
-                                                                    setProposalDefenseInput('');
-                                                                    setFinalDefenseInput('');
-                                                                }}
-                                                                disabled={processing}
-                                                            >
-                                                                Clear
-                                                            </Button>
-                                                            <Button
-                                                                type="submit"
-                                                                disabled={processing}
-                                                            >
-                                                                {processing ? (
-                                                                    <>
-                                                                        <Spinner />
-                                                                        Saving...
-                                                                    </>
-                                                                ) : (
-                                                                    'Save'
-                                                                )}
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </>
+                                                    </a>
+                                                </Button>
                                             )}
-                                        </Form>
-                                    ) : (
+                                            {approvalForms.postgrad && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-sm font-medium"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={
+                                                            approvalForms.postgrad
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Postgraduate Form
+                                                        {recommendedForm ===
+                                                            'postgrad' && (
+                                                            <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                                Recommended
+                                                            </span>
+                                                        )}
+                                                    </a>
+                                                </Button>
+                                            )}
+                                        </div>
+                                        {recommendedFormLabel && (
+                                            <p className="mt-3 text-xs text-muted-foreground">
+                                                Recommended based on program
+                                                level:{' '}
+                                                <span className="font-medium text-foreground">
+                                                    {recommendedFormLabel}
+                                                </span>
+                                                .
+                                            </p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <CardTitle>Defense Schedule</CardTitle>
+                                        <CardDescription>
+                                            {canReview
+                                                ? 'Set the proposal and final defense schedule for this thesis title.'
+                                                : 'Scheduled defense dates for this thesis title.'}
+                                        </CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent>
+                                {canReview ? (
+                                    <Form
+                                        {...ThesisTitleController.updateSchedule.form(
+                                            {
+                                                thesis_title: thesisTitle.id,
+                                            },
+                                        )}
+                                        options={{ preserveScroll: true }}
+                                        className="space-y-6"
+                                    >
+                                        {({
+                                            processing,
+                                            errors,
+                                            recentlySuccessful,
+                                        }) => (
+                                            <>
+                                                <div className="grid gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="proposal_defense_at">
+                                                            Proposal Defense
+                                                            Date
+                                                        </Label>
+                                                        <Input
+                                                            id="proposal_defense_at"
+                                                            name="proposal_defense_at"
+                                                            type="datetime-local"
+                                                            value={
+                                                                proposalDefenseInput
+                                                            }
+                                                            onChange={(event) =>
+                                                                setProposalDefenseInput(
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            aria-invalid={Boolean(
+                                                                errors.proposal_defense_at,
+                                                            )}
+                                                        />
+                                                        <InputError
+                                                            message={
+                                                                errors.proposal_defense_at
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="final_defense_at">
+                                                            Final Defense Date
+                                                        </Label>
+                                                        <Input
+                                                            id="final_defense_at"
+                                                            name="final_defense_at"
+                                                            type="datetime-local"
+                                                            value={
+                                                                finalDefenseInput
+                                                            }
+                                                            onChange={(event) =>
+                                                                setFinalDefenseInput(
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            aria-invalid={Boolean(
+                                                                errors.final_defense_at,
+                                                            )}
+                                                        />
+                                                        <InputError
+                                                            message={
+                                                                errors.final_defense_at
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                                                    {recentlySuccessful && (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Saved!
+                                                        </span>
+                                                    )}
+                                                    <div className="flex flex-col gap-3 sm:flex-row">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                setProposalDefenseInput(
+                                                                    '',
+                                                                );
+                                                                setFinalDefenseInput(
+                                                                    '',
+                                                                );
+                                                            }}
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            Clear
+                                                        </Button>
+                                                        <Button
+                                                            type="submit"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            {processing ? (
+                                                                <>
+                                                                    <Spinner />
+                                                                    Saving...
+                                                                </>
+                                                            ) : (
+                                                                'Save'
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </Form>
+                                ) : (
+                                    <dl className="grid gap-4">
+                                        {scheduleSummary.map((item) => (
+                                            <div key={item.label}>
+                                                <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                                    {item.label}
+                                                </dt>
+                                                <dd className="mt-1 text-sm text-foreground">
+                                                    {item.value}
+                                                </dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <CardTitle>Panel Members</CardTitle>
+                                        <CardDescription>
+                                            {canReview
+                                                ? 'Assign panel members for this thesis.'
+                                                : 'Assigned panel members for this thesis.'}
+                                        </CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent>
+                                {canReview && (
+                                    <Form
+                                        {...ThesisTitleController.updatePanel.form(
+                                            {
+                                                thesis_title: thesisTitle.id,
+                                            },
+                                        )}
+                                        options={{ preserveScroll: true }}
+                                        className="space-y-6"
+                                    >
+                                        {({
+                                            processing,
+                                            errors,
+                                            recentlySuccessful,
+                                        }) => (
+                                            <>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {PANEL_FIELDS.map(
+                                                        ({
+                                                            field,
+                                                            label,
+                                                            placeholder,
+                                                        }) => (
+                                                            <div
+                                                                key={field}
+                                                                className="space-y-2"
+                                                            >
+                                                                <Label
+                                                                    htmlFor={`panel-${field}`}
+                                                                >
+                                                                    {label}
+                                                                </Label>
+                                                                <Select
+                                                                    value={selectValueFor(
+                                                                        field,
+                                                                    )}
+                                                                    onValueChange={updatePanelStateValue(
+                                                                        field,
+                                                                    )}
+                                                                >
+                                                                    <SelectTrigger
+                                                                        id={`panel-${field}`}
+                                                                        aria-invalid={Boolean(
+                                                                            errors[
+                                                                                field
+                                                                            ],
+                                                                        )}
+                                                                    >
+                                                                        <SelectValue
+                                                                            placeholder={
+                                                                                placeholder
+                                                                            }
+                                                                        />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem
+                                                                            value={
+                                                                                UNASSIGNED_VALUE
+                                                                            }
+                                                                        >
+                                                                            Unassigned
+                                                                        </SelectItem>
+                                                                        {panelOptionsList.map(
+                                                                            (
+                                                                                option,
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        option.id
+                                                                                    }
+                                                                                    value={
+                                                                                        option.id
+                                                                                    }
+                                                                                >
+                                                                                    {
+                                                                                        option.name
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            ),
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <input
+                                                                    type="hidden"
+                                                                    name={field}
+                                                                    value={
+                                                                        panelState[
+                                                                            field
+                                                                        ]
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={
+                                                                        errors[
+                                                                            field
+                                                                        ]
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+
+                                                {panelOptionsEmpty && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        No other teachers are
+                                                        currently available to
+                                                        assign.
+                                                    </p>
+                                                )}
+
+                                                <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                                                    {recentlySuccessful && (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Assigned!
+                                                        </span>
+                                                    )}
+                                                    <div className="flex flex-col gap-3 sm:flex-row">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setPanelState({
+                                                                    chairman_id:
+                                                                        '',
+                                                                    member_one_id:
+                                                                        '',
+                                                                    member_two_id:
+                                                                        '',
+                                                                })
+                                                            }
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            Clear
+                                                        </Button>
+                                                        <Button
+                                                            type="submit"
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            {processing ? (
+                                                                <>
+                                                                    <Spinner />
+                                                                    Assigning...
+                                                                </>
+                                                            ) : (
+                                                                'Assign'
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </Form>
+                                )}
+
+                                {!canReview && (
+                                    <div className="mt-4">
                                         <dl className="grid gap-4">
-                                            {scheduleSummary.map((item) => (
+                                            {panelSummary.map((item) => (
                                                 <div key={item.label}>
                                                     <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                                         {item.label}
@@ -1472,179 +1793,10 @@ export default function ThesisTitleShow({
                                                 </div>
                                             ))}
                                         </dl>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                        <div>
-                                            <CardTitle>Panel Members</CardTitle>
-                                            <CardDescription>
-                                                {canReview
-                                                    ? 'Assign panel members for this thesis.'
-                                                    : 'Assigned panel members for this thesis.'}
-                                            </CardDescription>
-                                        </div>
                                     </div>
-                                </CardHeader>
-
-                                <CardContent>
-                                    {canReview && (
-                                        <Form
-                                            {...ThesisTitleController.updatePanel.form(
-                                                {
-                                                    thesis_title: thesisTitle.id,
-                                                },
-                                            )}
-                                            options={{ preserveScroll: true }}
-                                            className="space-y-6"
-                                        >
-                                            {({
-                                                processing,
-                                                errors,
-                                                recentlySuccessful,
-                                            }) => (
-                                                <>
-                                                    <div className="grid grid-cols-1 gap-4">
-                                                        {PANEL_FIELDS.map(
-                                                            ({
-                                                                field,
-                                                                label,
-                                                                placeholder,
-                                                            }) => (
-                                                                <div
-                                                                    key={field}
-                                                                    className="space-y-2"
-                                                                >
-                                                                    <Label
-                                                                        htmlFor={`panel-${field}`}
-                                                                    >
-                                                                        {label}
-                                                                    </Label>
-                                                                    <Select
-                                                                        value={selectValueFor(field)}
-                                                                        onValueChange={updatePanelStateValue(
-                                                                            field,
-                                                                        )}
-                                                                    >
-                                                                        <SelectTrigger
-                                                                            id={`panel-${field}`}
-                                                                            aria-invalid={Boolean(
-                                                                                errors[field],
-                                                                            )}
-                                                                        >
-                                                                            <SelectValue
-                                                                                placeholder={
-                                                                                    placeholder
-                                                                                }
-                                                                            />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            <SelectItem
-                                                                                value={
-                                                                                    UNASSIGNED_VALUE
-                                                                                }
-                                                                            >
-                                                                                Unassigned
-                                                                            </SelectItem>
-                                                                            {panelOptionsList.map(
-                                                                                (option) => (
-                                                                                    <SelectItem
-                                                                                        key={
-                                                                                            option.id
-                                                                                        }
-                                                                                        value={
-                                                                                            option.id
-                                                                                        }
-                                                                                    >
-                                                                                        {option.name}
-                                                                                    </SelectItem>
-                                                                                ),
-                                                                            )}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    <input
-                                                                        type="hidden"
-                                                                        name={field}
-                                                                        value={panelState[field]}
-                                                                    />
-                                                                    <InputError
-                                                                        message={
-                                                                            errors[field]
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                            ),
-                                                        )}
-                                                    </div>
-
-                                                    {panelOptionsEmpty && (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            No other teachers are currently available to assign.
-                                                        </p>
-                                                    )}
-
-                                                    <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                                                        {recentlySuccessful && (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                Assigned!
-                                                            </span>
-                                                        )}
-                                                        <div className="flex flex-col gap-3 sm:flex-row">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    setPanelState({
-                                                                        chairman_id: '',
-                                                                        member_one_id: '',
-                                                                        member_two_id: '',
-                                                                    })
-                                                                }
-                                                                disabled={processing}
-                                                            >
-                                                                Clear
-                                                            </Button>
-                                                            <Button
-                                                                type="submit"
-                                                                disabled={processing}
-                                                            >
-                                                                {processing ? (
-                                                                    <>
-                                                                        <Spinner />
-                                                                        Assigning...
-                                                                    </>
-                                                                ) : (
-                                                                    'Assign'
-                                                                )}
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </Form>
-                                    )}
-
-                                    {!canReview && (
-                                        <div className="mt-4">
-                                            <dl className="grid gap-4">
-                                                {panelSummary.map((item) => (
-                                                    <div key={item.label}>
-                                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                                            {item.label}
-                                                        </dt>
-                                                        <dd className="mt-1 text-sm text-foreground">
-                                                            {item.value}
-                                                        </dd>
-                                                    </div>
-                                                ))}
-                                            </dl>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </div>

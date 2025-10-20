@@ -11,6 +11,7 @@ use App\Models\Thesis;
 use App\Models\ThesisTitle;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -191,6 +192,10 @@ class ThesisTitleController extends Controller
                     'proposal' => route('thesis-titles.certificates.proposal', $thesisTitle),
                     'final' => route('thesis-titles.certificates.final', $thesisTitle),
                 ],
+                'approval_forms' => [
+                    'undergrad' => route('thesis-titles.approval-forms.undergrad', $thesisTitle),
+                    'postgrad' => route('thesis-titles.approval-forms.postgrad', $thesisTitle),
+                ],
                 'theses' => $thesisTitle->theses->map(function (Thesis $thesis) {
                     $scan = $thesis->latestPlagiarismScan;
 
@@ -293,6 +298,16 @@ class ThesisTitleController extends Controller
     public function downloadFinalCertificate(Request $request, ThesisTitle $thesisTitle)
     {
         return $this->downloadCertificate($request, $thesisTitle, 'final');
+    }
+
+    public function downloadUndergradApprovalForm(Request $request, ThesisTitle $thesisTitle)
+    {
+        return $this->downloadApprovalForm($request, $thesisTitle, 'undergrad');
+    }
+
+    public function downloadPostgradApprovalForm(Request $request, ThesisTitle $thesisTitle)
+    {
+        return $this->downloadApprovalForm($request, $thesisTitle, 'postgrad');
     }
 
     public function edit(Request $request, ThesisTitle $thesisTitle): Response
@@ -606,6 +621,168 @@ class ThesisTitleController extends Controller
         }
 
         return $adviser;
+    }
+
+    private function downloadApprovalForm(Request $request, ThesisTitle $thesisTitle, string $level)
+    {
+        $this->ensureCanView($request, $thesisTitle);
+
+        abort_unless(in_array($level, ['undergrad', 'postgrad'], true), 404);
+
+        $thesisTitle->load([
+            'adviser',
+            'members',
+            'panel.chairman',
+            'panel.memberOne',
+            'panel.memberTwo',
+            'user',
+            'theses' => fn ($query) => $query->latest('created_at'),
+        ]);
+
+        $courseName = $this->resolveCourseName($request, $thesisTitle) ?? '_________________________';
+        $studentName = optional($thesisTitle->user)->name ?? '_________________________';
+        $participantNames = $this->buildParticipantNames($thesisTitle);
+        $participantsLine = $this->formatParticipantsLine($participantNames);
+        $adviserName = optional($thesisTitle->adviser)->name ?? '_________________________';
+        if ($studentName === '_________________________' && ! empty($participantNames)) {
+            $studentName = $participantNames[0];
+        }
+        $finalDefenseDate = $this->formatDefenseDate($thesisTitle->final_defense_at);
+        $panel = optional($thesisTitle->panel);
+        $chairmanName = optional($panel?->chairman)->name ?? '_________________________';
+        $memberOneName = optional($panel?->memberOne)->name ?? '_________________________';
+        $memberTwoName = optional($panel?->memberTwo)->name ?? '_________________________';
+
+        $view = $level === 'postgrad'
+            ? 'approvals.postgrad'
+            : 'approvals.undergrad';
+
+        $viewData = [
+            'courseName' => $courseName,
+            'thesisTitle' => $thesisTitle->title ?? '_________________________',
+            'adviserName' => $adviserName,
+            'finalDefenseDate' => $finalDefenseDate,
+            'chairmanName' => $chairmanName,
+            'memberOneName' => $memberOneName,
+            'memberTwoName' => $memberTwoName,
+        ];
+
+        if ($level === 'postgrad') {
+            $viewData = array_merge($viewData, [
+                'studentName' => $studentName,
+            ]);
+        } else {
+            $collegeName = $this->resolveCollegeName($request, $thesisTitle) ?? '________________';
+            $viewData = array_merge($viewData, [
+                'participantsLine' => $participantsLine,
+                'deanName' => '________________',
+                'deanTitle' => sprintf('Dean, %s', $collegeName),
+            ]);
+        }
+
+        $pdf = Pdf::loadView($view, $viewData)->setPaper('A4', 'portrait');
+
+        $filename = Str::slug($thesisTitle->title ?: 'thesis-title')."-{$level}-approval-form.pdf";
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildParticipantNames(ThesisTitle $thesisTitle): array
+    {
+        $names = collect();
+
+        $leaderName = optional($thesisTitle->user)->name;
+
+        if ($leaderName) {
+            $names->push($leaderName);
+        }
+
+        $memberNames = $thesisTitle->members
+            ->pluck('name')
+            ->filter()
+            ->values();
+
+        if ($memberNames->isNotEmpty()) {
+            $names = $names->merge($memberNames);
+        }
+
+        return $names
+            ->map(fn ($name) => is_string($name) ? trim($name) : null)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    private function formatParticipantsLine(array $names): string
+    {
+        $names = array_values(array_filter($names, fn ($name) => is_string($name) && trim($name) !== ''));
+
+        $count = count($names);
+
+        if ($count === 0) {
+            return '_________________________';
+        }
+
+        if ($count === 1) {
+            return $names[0];
+        }
+
+        if ($count === 2) {
+            return $names[0].' and '.$names[1];
+        }
+
+        $last = array_pop($names);
+
+        return implode(', ', $names).' and '.$last;
+    }
+
+    private function resolveCourseName(Request $request, ThesisTitle $thesisTitle): ?string
+    {
+        return $this->normalizeString(
+            data_get($request->session()->get('step_auth'), 'user.student.course.name')
+        );
+    }
+
+    private function resolveCollegeName(Request $request, ThesisTitle $thesisTitle): ?string
+    {
+        return $this->normalizeString(
+            data_get($request->session()->get('step_auth'), 'user.student.college.name')
+        );
+    }
+
+    private function formatDefenseDate(?CarbonInterface $date): string
+    {
+        if (! $date) {
+            return '_________________________';
+        }
+
+        $date = $date->timezone(config('app.timezone'));
+
+        $formatted = $date->format('F j, Y');
+
+        if ($date->format('Hi') !== '0000') {
+            $formatted .= ' '.$date->format('g:i A');
+        }
+
+        return $formatted;
+    }
+
+    private function normalizeString(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+
+            return $trimmed !== '' ? $trimmed : null;
+        }
+
+        return null;
     }
 
     private function downloadCertificate(Request $request, ThesisTitle $thesisTitle, string $type)

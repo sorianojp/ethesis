@@ -27,6 +27,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('thesis-titles.certificates.proposal');
     Route::get('thesis-titles/{thesis_title}/certificates/final', [ThesisTitleController::class, 'downloadFinalCertificate'])
         ->name('thesis-titles.certificates.final');
+    Route::get('thesis-titles/{thesis_title}/approval-forms/undergrad', [ThesisTitleController::class, 'downloadUndergradApprovalForm'])
+        ->name('thesis-titles.approval-forms.undergrad');
+    Route::get('thesis-titles/{thesis_title}/approval-forms/postgrad', [ThesisTitleController::class, 'downloadPostgradApprovalForm'])
+        ->name('thesis-titles.approval-forms.postgrad');
 });
 
 require __DIR__.'/settings.php';
