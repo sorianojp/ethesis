@@ -38,11 +38,18 @@ export default function Profile({
                   }
 
                   if (role && typeof role === 'object') {
-                      if ('name' in role && typeof (role as { name?: unknown }).name === 'string') {
+                      if (
+                          'name' in role &&
+                          typeof (role as { name?: unknown }).name === 'string'
+                      ) {
                           return (role as { name: string }).name;
                       }
 
-                      if ('title' in role && typeof (role as { title?: unknown }).title === 'string') {
+                      if (
+                          'title' in role &&
+                          typeof (role as { title?: unknown }).title ===
+                              'string'
+                      ) {
                           return (role as { title: string }).title;
                       }
                   }
@@ -53,7 +60,10 @@ export default function Profile({
         : [];
     const userRecord = auth.user as Record<string, unknown>;
 
-    const getNestedString = (source: unknown, path: string[]): string | null => {
+    const getNestedString = (
+        source: unknown,
+        path: string[],
+    ): string | null => {
         let current: unknown = source;
 
         for (const segment of path) {
@@ -73,12 +83,54 @@ export default function Profile({
         return trimmed === '' ? null : trimmed;
     };
 
+    const getNestedNumber = (
+        source: unknown,
+        path: string[],
+    ): number | null => {
+        let current: unknown = source;
+
+        for (const segment of path) {
+            if (!current || typeof current !== 'object' || current === null) {
+                return null;
+            }
+
+            current = (current as Record<string, unknown>)[segment];
+        }
+
+        if (typeof current === 'number') {
+            return current;
+        }
+
+        if (typeof current === 'string') {
+            const numeric = Number(current.trim());
+
+            if (!Number.isNaN(numeric)) {
+                return numeric;
+            }
+        }
+
+        return null;
+    };
+
     const studentData = userRecord['student'];
     const staffData = userRecord['staff'];
 
-    const studentCollegeName = getNestedString(studentData, ['college', 'name']);
+    const studentCollegeName = getNestedString(studentData, [
+        'college',
+        'name',
+    ]);
     const studentCourseName = getNestedString(studentData, ['course', 'name']);
     const staffCollegeName = getNestedString(staffData, ['college', 'name']);
+    const studentPostGradFlag = getNestedNumber(studentData, [
+        'course',
+        'post_grad',
+    ]);
+    const programLevel =
+        studentPostGradFlag === null
+            ? null
+            : studentPostGradFlag === 1
+              ? 'Postgrad'
+              : 'Undergrad';
 
     const academicDetails: Array<{ label: string; value: string }> = [];
 
@@ -88,6 +140,10 @@ export default function Profile({
 
     if (studentCourseName) {
         academicDetails.push({ label: 'Course', value: studentCourseName });
+    }
+
+    if (programLevel) {
+        academicDetails.push({ label: 'Program level', value: programLevel });
     }
 
     if (academicDetails.length === 0 && staffCollegeName) {
@@ -107,7 +163,9 @@ export default function Profile({
 
                     {roleNames.length > 0 && (
                         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200">
-                            <p className="font-medium text-neutral-900 dark:text-neutral-50">Roles</p>
+                            <p className="font-medium text-neutral-900 dark:text-neutral-50">
+                                Roles
+                            </p>
                             <p className="mt-1">{roleNames.join(', ')}</p>
                         </div>
                     )}
@@ -115,7 +173,7 @@ export default function Profile({
                     {academicDetails.length > 0 && (
                         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200">
                             <p className="font-medium text-neutral-900 dark:text-neutral-50">
-                                Academic details
+                                Academic Details
                             </p>
 
                             <ul className="mt-1 space-y-1">
