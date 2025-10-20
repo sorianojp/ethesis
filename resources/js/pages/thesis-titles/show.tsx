@@ -131,6 +131,7 @@ interface ThesisItem {
     id: number;
     chapter: string;
     thesis_pdf_url: string | null;
+    post_grad: boolean;
     created_at: string | null;
     status: ThesisStatus;
     rejection_remark: string | null;
@@ -728,6 +729,37 @@ export default function ThesisTitleShow({
     panelOptions,
 }: ThesisTitleShowProps) {
     const { auth } = usePage<SharedData>().props;
+    const programLevel = useMemo(() => {
+        const thesisSource = thesisTitle.theses.find(() => true);
+
+        if (thesisSource) {
+            return thesisSource.post_grad ? 'Postgrad' : 'Undergrad';
+        }
+
+        const rawStudent = (auth.user as Record<string, unknown> | undefined)?.student;
+
+        if (rawStudent && typeof rawStudent === 'object') {
+            const course = (rawStudent as Record<string, unknown>).course;
+
+            if (course && typeof course === 'object') {
+                const postGradValue = (course as Record<string, unknown>).post_grad;
+
+                if (typeof postGradValue === 'number') {
+                    return postGradValue === 1 ? 'Postgrad' : 'Undergrad';
+                }
+
+                if (typeof postGradValue === 'string') {
+                    const numeric = Number(postGradValue.trim());
+
+                    if (!Number.isNaN(numeric)) {
+                        return numeric === 1 ? 'Postgrad' : 'Undergrad';
+                    }
+                }
+            }
+        }
+
+        return null;
+    }, [auth.user, thesisTitle.theses]);
     const currentUserId = auth.user?.id ?? null;
     const isLeaderViewer =
         thesisTitle.leader !== null &&
@@ -927,6 +959,14 @@ export default function ThesisTitleShow({
                                         </dt>
                                         <dd className="mt-1">{membersDisplayName}</dd>
                                     </div>
+                                    <div>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            Program Level
+                                        </dt>
+                                        <dd className="mt-1">
+                                            {programLevel ?? '—'}
+                                        </dd>
+                                    </div>
                                 </dl>
                             </CardContent>
                         </Card>
@@ -953,16 +993,19 @@ export default function ThesisTitleShow({
                             <div className="overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
                                 <table className="min-w-full divide-y divide-border">
                                     <thead className="bg-muted/50">
-                                        <tr className="text-left text-sm font-semibold text-muted-foreground">
-                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Chapter/Other File
-                                            </th>
-                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Status
-                                            </th>
-                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                                Remark
-                                            </th>
+                                            <tr className="text-left text-sm font-semibold text-muted-foreground">
+                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                    Chapter/Other File
+                                                </th>
+                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                    Program Level
+                                                </th>
+                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                    Status
+                                                </th>
+                                                <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                    Remark
+                                                </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                                 Plagiarism Score
                                             </th>
@@ -972,22 +1015,25 @@ export default function ThesisTitleShow({
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                                 Actions
                                             </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border">
-                                        {thesisTitle.theses.length === 0 && (
-                                            <tr>
-                                                <td
-                                                    colSpan={6}
-                                                    className="px-6 py-10 text-center text-sm text-muted-foreground"
-                                                >
-                                                    No thesis files yet.
-                                                </td>
                                             </tr>
-                                        )}
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                            {thesisTitle.theses.length === 0 && (
+                                                <tr>
+                                                    <td
+                                                        colSpan={7}
+                                                        className="px-6 py-10 text-center text-sm text-muted-foreground"
+                                                    >
+                                                        No thesis files yet.
+                                                    </td>
+                                                </tr>
+                                            )}
 
-                                        {thesisTitle.theses.map((thesis) => {
-                                            const isStatusFinal =
+                                            {thesisTitle.theses.map((thesis) => {
+                                                const thesisProgramLevel = thesis.post_grad
+                                                    ? 'Postgrad'
+                                                    : 'Undergrad';
+                                                const isStatusFinal =
                                                 thesis.status === 'approved' ||
                                                 thesis.status === 'rejected';
 
@@ -1011,6 +1057,9 @@ export default function ThesisTitleShow({
                                                         ) : (
                                                             thesis.chapter
                                                         )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-muted-foreground">
+                                                        {thesisProgramLevel}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         {(() => {

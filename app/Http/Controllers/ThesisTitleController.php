@@ -198,6 +198,7 @@ class ThesisTitleController extends Controller
                         'id' => $thesis->id,
                         'chapter' => $thesis->chapter,
                         'thesis_pdf_url' => $this->fileUrl($thesis->thesis_pdf),
+                        'post_grad' => (bool) $thesis->post_grad,
                         'created_at' => optional($thesis->created_at)->toIso8601String(),
                         'status' => $thesis->status instanceof ThesisStatus
                             ? $thesis->status->value

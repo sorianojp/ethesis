@@ -54,6 +54,7 @@ class ThesisController extends Controller
         $thesis = $thesisTitle->theses()->create([
             'chapter' => $data['chapter'],
             'thesis_pdf' => $path,
+            'post_grad' => $this->determinePostGradFlag($request),
             'status' => ThesisStatus::PENDING,
         ]);
 
@@ -94,6 +95,7 @@ class ThesisController extends Controller
 
         $update = [
             'chapter' => $data['chapter'],
+            'post_grad' => $this->determinePostGradFlag($request),
         ];
 
         $newDocumentPath = null;
@@ -196,6 +198,27 @@ class ThesisController extends Controller
         if ($disk->fileExists($path)) {
             $disk->delete($path);
         }
+    }
+
+    private function determinePostGradFlag(Request $request): bool
+    {
+        $sessionValue = data_get($request->session()->get('step_auth'), 'user.student.course.post_grad');
+
+        if ($sessionValue !== null) {
+            return (int) $sessionValue === 1;
+        }
+
+        $user = $request->user();
+
+        if ($user) {
+            $userValue = data_get($user->getAttributes(), 'student.course.post_grad');
+
+            if ($userValue !== null) {
+                return (int) $userValue === 1;
+            }
+        }
+
+        return false;
     }
 
     private function fileUrl(?string $path): ?string

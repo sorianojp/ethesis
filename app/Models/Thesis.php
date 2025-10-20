@@ -17,12 +17,14 @@ class Thesis extends Model
         'thesis_title_id',
         'chapter',
         'thesis_pdf',
+        'post_grad',
         'status',
         'rejection_remark',
     ];
 
     protected $casts = [
         'status' => ThesisStatus::class,
+        'post_grad' => 'boolean',
     ];
 
     public function thesisTitle(): BelongsTo
