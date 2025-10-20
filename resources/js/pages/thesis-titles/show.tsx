@@ -100,6 +100,10 @@ interface ThesisTitleShowProps {
         proposal_defense_at: string | null;
         final_defense_at: string | null;
         created_at: string | null;
+        certificates: {
+            proposal: string;
+            final: string;
+        };
         theses: ThesisItem[];
         members: { id: number; name: string }[];
         panel: PanelAssignments;
@@ -821,6 +825,57 @@ export default function ThesisTitleShow({
                                                 No endorsement uploaded.
                                             </span>
                                         )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {canAccessPrimaryFiles && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Certificates</CardTitle>
+                                    <CardDescription>
+                                        Download eligibility certificates for
+                                        scheduled defenses.
+                                    </CardDescription>
+                                </CardHeader>
+
+                                <CardContent>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-sm font-medium"
+                                            asChild
+                                        >
+                                            <a
+                                                href={
+                                                    thesisTitle.certificates
+                                                        .proposal
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Proposal Defense
+                                            </a>
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-sm font-medium"
+                                            asChild
+                                        >
+                                            <a
+                                                href={
+                                                    thesisTitle.certificates
+                                                        .final
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Final Defense
+                                            </a>
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>

@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateThesisTitleRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -186,6 +187,10 @@ class ThesisTitleController extends Controller
                 'proposal_defense_at' => optional($thesisTitle->proposal_defense_at)->toIso8601String(),
                 'final_defense_at' => optional($thesisTitle->final_defense_at)->toIso8601String(),
                 'created_at' => optional($thesisTitle->created_at)->toIso8601String(),
+                'certificates' => [
+                    'proposal' => route('thesis-titles.certificates.proposal', $thesisTitle),
+                    'final' => route('thesis-titles.certificates.final', $thesisTitle),
+                ],
                 'theses' => $thesisTitle->theses->map(fn (Thesis $thesis) => [
                     'id' => $thesis->id,
                     'chapter' => $thesis->chapter,
@@ -253,6 +258,16 @@ class ThesisTitleController extends Controller
         $thesisTitle->update($request->schedulePayload());
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
+    }
+
+    public function downloadProposalCertificate(Request $request, ThesisTitle $thesisTitle)
+    {
+        return $this->downloadCertificate($request, $thesisTitle, 'proposal');
+    }
+
+    public function downloadFinalCertificate(Request $request, ThesisTitle $thesisTitle)
+    {
+        return $this->downloadCertificate($request, $thesisTitle, 'final');
     }
 
     public function edit(Request $request, ThesisTitle $thesisTitle): Response
@@ -566,5 +581,43 @@ class ThesisTitleController extends Controller
         }
 
         return $adviser;
+    }
+
+    private function downloadCertificate(Request $request, ThesisTitle $thesisTitle, string $type)
+    {
+        $this->ensureCanView($request, $thesisTitle);
+
+        abort_unless(in_array($type, ['proposal', 'final'], true), 404);
+
+        $thesisTitle->load([
+            'adviser',
+            'members',
+            'panel.chairman',
+            'panel.memberOne',
+            'panel.memberTwo',
+            'user',
+        ]);
+
+        $certificateTitle = $type === 'proposal'
+            ? 'Proposal Defense Eligibility Certificate'
+            : 'Final Defense Eligibility Certificate';
+
+        $defenseSchedule = $type === 'proposal'
+            ? $thesisTitle->proposal_defense_at
+            : $thesisTitle->final_defense_at;
+
+        $pdf = Pdf::loadView('certificates.eligibility', [
+            'certificateTitle' => $certificateTitle,
+            'thesisTitle' => $thesisTitle,
+            'defenseSchedule' => $defenseSchedule,
+        ])->setPaper('A4', 'portrait');
+
+        $fileSuffix = $type === 'proposal'
+            ? 'proposal-defense-eligibility'
+            : 'final-defense-eligibility';
+
+        $filename = Str::slug($thesisTitle->title ?: 'thesis-title')."-{$fileSuffix}.pdf";
+
+        return $pdf->download($filename);
     }
 }

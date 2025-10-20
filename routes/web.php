@@ -23,6 +23,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('thesis-titles.panel.update');
     Route::patch('thesis-titles/{thesis_title}/schedule', [ThesisTitleController::class, 'updateSchedule'])
         ->name('thesis-titles.schedule.update');
+    Route::get('thesis-titles/{thesis_title}/certificates/proposal', [ThesisTitleController::class, 'downloadProposalCertificate'])
+        ->name('thesis-titles.certificates.proposal');
+    Route::get('thesis-titles/{thesis_title}/certificates/final', [ThesisTitleController::class, 'downloadFinalCertificate'])
+        ->name('thesis-titles.certificates.final');
 });
 
 require __DIR__.'/settings.php';
