@@ -40,4 +40,11 @@ return [
         'timeout' => env('STEP_API_TIMEOUT', 10),
     ],
 
+    'winston_ai' => [
+        'token' => env('WINSTON_AI_API_TOKEN', ''),
+        'plagiarism_endpoint' => env('WINSTON_AI_PLAGIARISM_ENDPOINT', 'https://api.gowinston.ai/v2/plagiarism'),
+        'default_language' => env('WINSTON_AI_DEFAULT_LANGUAGE', 'en'),
+        'default_country' => env('WINSTON_AI_DEFAULT_COUNTRY', 'us'),
+    ],
+
 ];

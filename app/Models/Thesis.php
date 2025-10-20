@@ -6,6 +6,8 @@ use App\Enums\ThesisStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Thesis extends Model
 {
@@ -26,5 +28,15 @@ class Thesis extends Model
     public function thesisTitle(): BelongsTo
     {
         return $this->belongsTo(ThesisTitle::class);
+    }
+
+    public function plagiarismScans(): HasMany
+    {
+        return $this->hasMany(PlagiarismScan::class);
+    }
+
+    public function latestPlagiarismScan(): HasOne
+    {
+        return $this->hasOne(PlagiarismScan::class)->latestOfMany();
     }
 }

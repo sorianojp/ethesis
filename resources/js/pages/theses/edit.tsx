@@ -3,6 +3,7 @@ import ThesisTitleController from '@/actions/App/Http/Controllers/ThesisTitleCon
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -44,79 +45,97 @@ export default function ThesisEdit({ thesisTitle, thesis }: ThesisEditProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit Chapter • ${thesisTitle.title}`} />
-            <div className="px-4 py-6">
+            <div className="max-w-xl px-4 py-6">
                 <Heading
                     title={`Edit ${thesis.chapter}`}
                     description="Update the details of your chapter below."
                 />
-                <Form
-                    {...ThesisController.update.form({
-                        thesis_title: thesisTitle.id,
-                        thesis: thesis.id,
-                    })}
-                    encType="multipart/form-data"
-                    className="space-y-6"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="space-y-2">
-                                <Label htmlFor="chapter">Chapter</Label>
-                                <Input
-                                    id="chapter"
-                                    name="chapter"
-                                    defaultValue={thesis.chapter}
-                                    required
-                                />
-                                <InputError message={errors.chapter} />
-                            </div>
+                <Card>
+                    <CardContent>
+                        <Form
+                            {...ThesisController.update.form({
+                                thesis_title: thesisTitle.id,
+                                thesis: thesis.id,
+                            })}
+                            encType="multipart/form-data"
+                            className="space-y-6"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="chapter">Chapter</Label>
+                                        <Input
+                                            id="chapter"
+                                            name="chapter"
+                                            defaultValue={thesis.chapter}
+                                            required
+                                        />
+                                        <InputError message={errors.chapter} />
+                                    </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="thesis_pdf">Thesis PDF</Label>
-                                <Input
-                                    id="thesis_pdf"
-                                    name="thesis_pdf"
-                                    type="file"
-                                    accept="application/pdf"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Leave blank to keep the current file.
-                                </p>
-                                {thesis.thesis_pdf_url && (
-                                    <p className="text-xs">
-                                        Current:{' '}
-                                        <a
-                                            href={thesis.thesis_pdf_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="font-medium text-primary hover:underline"
+                                    <div className="space-y-2">
+                                        <Label htmlFor="thesis_pdf">
+                                            Thesis Document
+                                        </Label>
+                                        <Input
+                                            id="thesis_pdf"
+                                            name="thesis_pdf"
+                                            type="file"
+                                            accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Upload a DOC or DOCX file to replace
+                                            the current document. Leave blank to
+                                            keep the current file.
+                                        </p>
+                                        {thesis.thesis_pdf_url && (
+                                            <p className="text-xs">
+                                                Current:{' '}
+                                                <a
+                                                    href={thesis.thesis_pdf_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="font-medium text-primary hover:underline"
+                                                >
+                                                    View current file
+                                                </a>
+                                            </p>
+                                        )}
+                                        <InputError
+                                            message={errors.thesis_pdf}
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center justify-end gap-3">
+                                        <Button
+                                            variant="outline"
+                                            type="button"
+                                            asChild
                                         >
-                                            View current file
-                                        </a>
-                                    </p>
-                                )}
-                                <InputError message={errors.thesis_pdf} />
-                            </div>
-
-                            <div className="flex items-center justify-end gap-3">
-                                <Button variant="outline" type="button" asChild>
-                                    <Link
-                                        href={
-                                            ThesisTitleController.show({
-                                                thesis_title: thesisTitle.id,
-                                            }).url
-                                        }
-                                        prefetch
-                                    >
-                                        Cancel
-                                    </Link>
-                                </Button>
-                                <Button type="submit" disabled={processing}>
-                                    Update
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                                            <Link
+                                                href={
+                                                    ThesisTitleController.show({
+                                                        thesis_title:
+                                                            thesisTitle.id,
+                                                    }).url
+                                                }
+                                                prefetch
+                                            >
+                                                Cancel
+                                            </Link>
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Update
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </Form>
+                    </CardContent>
+                </Card>
             </div>
         </AppLayout>
     );

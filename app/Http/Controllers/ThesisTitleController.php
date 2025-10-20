@@ -139,7 +139,7 @@ class ThesisTitleController extends Controller
         $this->ensureCanView($request, $thesisTitle);
 
         $thesisTitle->load([
-            'theses' => fn ($query) => $query->latest(),
+            'theses' => fn ($query) => $query->latest()->with('latestPlagiarismScan'),
             'adviser',
             'members',
             'panel.chairman',
@@ -191,16 +191,40 @@ class ThesisTitleController extends Controller
                     'proposal' => route('thesis-titles.certificates.proposal', $thesisTitle),
                     'final' => route('thesis-titles.certificates.final', $thesisTitle),
                 ],
-                'theses' => $thesisTitle->theses->map(fn (Thesis $thesis) => [
-                    'id' => $thesis->id,
-                    'chapter' => $thesis->chapter,
-                    'thesis_pdf_url' => $this->fileUrl($thesis->thesis_pdf),
-                    'created_at' => optional($thesis->created_at)->toIso8601String(),
-                    'status' => $thesis->status instanceof ThesisStatus
-                        ? $thesis->status->value
-                        : ($thesis->status ?? ThesisStatus::PENDING->value),
-                    'rejection_remark' => $thesis->rejection_remark,
-                ]),
+                'theses' => $thesisTitle->theses->map(function (Thesis $thesis) {
+                    $scan = $thesis->latestPlagiarismScan;
+
+                    return [
+                        'id' => $thesis->id,
+                        'chapter' => $thesis->chapter,
+                        'thesis_pdf_url' => $this->fileUrl($thesis->thesis_pdf),
+                        'created_at' => optional($thesis->created_at)->toIso8601String(),
+                        'status' => $thesis->status instanceof ThesisStatus
+                            ? $thesis->status->value
+                            : ($thesis->status ?? ThesisStatus::PENDING->value),
+                        'rejection_remark' => $thesis->rejection_remark,
+                        'plagiarism_scan' => $scan ? [
+                            'id' => $scan->id,
+                            'status' => $scan->status,
+                            'document_path' => $scan->document_path,
+                            'document_url' => $this->fileUrl($scan->document_path),
+                            'language' => $scan->language,
+                            'country' => $scan->country,
+                            'score' => $scan->score,
+                            'source_count' => $scan->source_count,
+                            'text_word_count' => $scan->text_word_count,
+                            'total_plagiarism_words' => $scan->total_plagiarism_words,
+                            'identical_word_count' => $scan->identical_word_count,
+                            'similar_word_count' => $scan->similar_word_count,
+                            'sources' => $scan->sources,
+                            'raw_response' => $scan->raw_response,
+                            'error_message' => $scan->error_message,
+                            'scanned_at' => optional($scan->scanned_at)->toIso8601String(),
+                            'created_at' => optional($scan->created_at)->toIso8601String(),
+                            'updated_at' => optional($scan->updated_at)->toIso8601String(),
+                        ] : null,
+                    ];
+                }),
                 'panel' => [
                     'chairman' => $panel && $panel->chairman ? [
                         'id' => $panel->chairman->id,

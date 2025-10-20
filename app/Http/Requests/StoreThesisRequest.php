@@ -23,7 +23,7 @@ class StoreThesisRequest extends FormRequest
     {
         return [
             'chapter' => ['required', 'string', 'max:255'],
-            'thesis_pdf' => ['required', 'file', 'mimes:pdf'],
+            'thesis_pdf' => ['required', 'file', 'mimes:doc,docx'],
         ];
     }
 }

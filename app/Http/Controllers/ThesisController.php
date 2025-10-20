@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateThesisRequest;
 use App\Http\Requests\UpdateThesisStatusRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
+use App\Services\WinstonPlagiarismService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -50,11 +51,13 @@ class ThesisController extends Controller
             'theses/'.$thesisTitle->id
         );
 
-        $thesisTitle->theses()->create([
+        $thesis = $thesisTitle->theses()->create([
             'chapter' => $data['chapter'],
             'thesis_pdf' => $path,
             'status' => ThesisStatus::PENDING,
         ]);
+
+        $this->initiatePlagiarismScan($thesis, $path);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -93,17 +96,24 @@ class ThesisController extends Controller
             'chapter' => $data['chapter'],
         ];
 
+        $newDocumentPath = null;
+
         if ($request->hasFile('thesis_pdf')) {
             $this->deleteFromSpaces($thesis->thesis_pdf);
-            $update['thesis_pdf'] = $this->uploadPdf(
+            $newDocumentPath = $this->uploadPdf(
                 $request->file('thesis_pdf'),
                 $request->user()->id,
                 'theses/'.$thesisTitle->id
             );
+            $update['thesis_pdf'] = $newDocumentPath;
             $update['status'] = ThesisStatus::PENDING;
         }
 
         $thesis->update($update);
+
+        if ($newDocumentPath) {
+            $this->initiatePlagiarismScan($thesis, $newDocumentPath);
+        }
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -191,5 +201,28 @@ class ThesisController extends Controller
     private function fileUrl(?string $path): ?string
     {
         return $path ? Storage::disk('spaces')->url($path) : null;
+    }
+
+    private function initiatePlagiarismScan(Thesis $thesis, string $documentPath): void
+    {
+        $scan = $thesis->plagiarismScans()->create([
+            'status' => 'pending',
+            'document_path' => $documentPath,
+            'language' => config('services.winston_ai.default_language', 'en'),
+            'country' => config('services.winston_ai.default_country', 'us'),
+        ]);
+
+        $documentUrl = $this->fileUrl($documentPath);
+
+        if (! $documentUrl) {
+            $scan->update([
+                'status' => 'failed',
+                'error_message' => 'Unable to resolve document URL for plagiarism scan.',
+            ]);
+
+            return;
+        }
+
+        WinstonPlagiarismService::make()->scan($scan, $documentUrl);
     }
 }

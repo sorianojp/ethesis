@@ -69,18 +69,20 @@ export default function ThesisTitleIndex({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Thesis" />
+            <Head title="Theses" />
             <div className="px-4 py-6">
-                <Heading title="Thesis" description="Manage your thesis" />
+                <Heading title="Theses" description="Manage your theses" />
                 {canCreate && (
-                    <Button asChild>
-                        <Link
-                            href={ThesisTitleController.create().url}
-                            prefetch
-                        >
-                            Add Thesis
-                        </Link>
-                    </Button>
+                    <div className="mb-2 flex justify-end">
+                        <Button asChild>
+                            <Link
+                                href={ThesisTitleController.create().url}
+                                prefetch
+                            >
+                                Add Thesis
+                            </Link>
+                        </Button>
+                    </div>
                 )}
                 <div className="flex-1 overflow-x-auto">
                     <div className="min-w-full overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
@@ -133,11 +135,7 @@ export default function ThesisTitleIndex({
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3 text-sm font-medium">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
+                                                <Button size="sm" asChild>
                                                     <Link
                                                         href={
                                                             ThesisTitleController.show(
@@ -152,7 +150,11 @@ export default function ThesisTitleIndex({
                                                         View
                                                     </Link>
                                                 </Button>
-                                                <Button size="sm" asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
                                                     <Link
                                                         href={
                                                             ThesisTitleController.edit(
@@ -213,7 +215,9 @@ export default function ThesisTitleIndex({
 
                 {hasMemberships && (
                     <div className="mt-10 space-y-4">
-                        <h2 className="text-lg font-semibold">Thesis You&apos;re In</h2>
+                        <h2 className="text-lg font-semibold">
+                            Thesis You&apos;re In
+                        </h2>
                         <div className="overflow-x-auto">
                             <div className="min-w-full overflow-hidden rounded-xl border border-sidebar-border/60 bg-background shadow-sm dark:border-sidebar-border">
                                 <table className="min-w-full divide-y divide-border">
@@ -241,7 +245,10 @@ export default function ThesisTitleIndex({
                                     </thead>
                                     <tbody className="divide-y divide-border">
                                         {memberThesisTitles.map((item) => (
-                                            <tr key={item.id} className="text-sm">
+                                            <tr
+                                                key={item.id}
+                                                className="text-sm"
+                                            >
                                                 <td className="px-6 py-4 font-medium text-foreground">
                                                     {item.title}
                                                 </td>
@@ -255,14 +262,25 @@ export default function ThesisTitleIndex({
                                                     {item.theses_count}
                                                 </td>
                                                 <td className="px-6 py-4 text-muted-foreground">
-                                                    {formatDate(item.created_at)}
+                                                    {formatDate(
+                                                        item.created_at,
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <Button variant="outline" size="sm" asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        asChild
+                                                    >
                                                         <Link
-                                                            href={ThesisTitleController.show({
-                                                                thesis_title: item.id,
-                                                            }).url}
+                                                            href={
+                                                                ThesisTitleController.show(
+                                                                    {
+                                                                        thesis_title:
+                                                                            item.id,
+                                                                    },
+                                                                ).url
+                                                            }
                                                             prefetch
                                                         >
                                                             View

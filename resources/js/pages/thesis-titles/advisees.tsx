@@ -108,11 +108,7 @@ export default function ThesisTitleAdvisees({
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3 text-sm font-medium">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
+                                                <Button size="sm" asChild>
                                                     <Link
                                                         href={
                                                             ThesisTitleController.show(

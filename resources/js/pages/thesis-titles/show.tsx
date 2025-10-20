@@ -55,6 +55,53 @@ interface PanelOption {
     name: string;
 }
 
+interface PlagiarismFinding {
+    startIndex?: number;
+    endIndex?: number;
+    sequence?: string;
+}
+
+interface PlagiarismSource {
+    score?: number;
+    url?: string;
+    title?: string;
+    author?: string;
+    source?: string;
+    description?: string;
+    plagiarismWords?: number;
+    totalNumberOfWords?: number;
+    identicalWordCounts?: number;
+    similarWordCounts?: number;
+    similarWords?: unknown[];
+    citation?: boolean;
+    canAccess?: boolean;
+    is_excluded?: boolean;
+    publishedDate?: string;
+    plagiarismFound?: PlagiarismFinding[];
+    [key: string]: unknown;
+}
+
+interface PlagiarismScan {
+    id: number;
+    status: 'pending' | 'completed' | 'failed' | string;
+    document_path: string | null;
+    document_url: string | null;
+    language: string | null;
+    country: string | null;
+    score: number | null;
+    source_count: number | null;
+    text_word_count: number | null;
+    total_plagiarism_words: number | null;
+    identical_word_count: number | null;
+    similar_word_count: number | null;
+    sources: PlagiarismSource[] | null;
+    raw_response: Record<string, unknown> | null;
+    error_message: string | null;
+    scanned_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
+
 type PanelStateKey = 'chairman_id' | 'member_one_id' | 'member_two_id';
 type PanelState = Record<PanelStateKey, string>;
 
@@ -87,6 +134,7 @@ interface ThesisItem {
     created_at: string | null;
     status: ThesisStatus;
     rejection_remark: string | null;
+    plagiarism_scan: PlagiarismScan | null;
 }
 
 interface ThesisTitleShowProps {
@@ -199,6 +247,364 @@ function ThesisRemarkDialog({ thesis }: ThesisRemarkDialogProps) {
 interface RejectThesisDialogProps {
     thesisTitleId: number;
     thesis: ThesisItem;
+}
+
+interface PlagiarismScanDialogProps {
+    scan: PlagiarismScan;
+}
+
+const SCAN_STATUS_BADGE: Record<
+    string,
+    'default' | 'secondary' | 'destructive' | 'outline'
+> = {
+    completed: 'default',
+    pending: 'secondary',
+    failed: 'destructive',
+};
+
+function PlagiarismScanDialog({ scan }: PlagiarismScanDialogProps) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const label =
+        scan.score !== null
+            ? `${scan.score}%`
+            : scan.status === 'failed'
+              ? 'Failed'
+              : 'Pending';
+
+    const statusVariant =
+        SCAN_STATUS_BADGE[scan.status] ?? SCAN_STATUS_BADGE.pending;
+
+    const metrics = [
+        { label: 'Score', value: scan.score !== null ? `${scan.score}%` : '—' },
+        {
+            label: 'Source Count',
+            value: scan.source_count ?? '—',
+        },
+        {
+            label: 'Identical Words',
+            value: scan.identical_word_count ?? '—',
+        },
+        {
+            label: 'Similar Words',
+            value: scan.similar_word_count ?? '—',
+        },
+        {
+            label: 'Total Plagiarized Words',
+            value: scan.total_plagiarism_words ?? '—',
+        },
+        {
+            label: 'Text Word Count',
+            value: scan.text_word_count ?? '—',
+        },
+    ];
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="link" className="px-0">
+                    {scan.status === 'pending' && (
+                        <Spinner className="mr-1 h-3 w-3" />
+                    )}
+                    {label}
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="flex max-h-[85vh] w-full flex-col sm:max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Plagiarism Scan</DialogTitle>
+                    <DialogDescription>
+                        Winston AI scan details for this thesis file.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 space-y-4 overflow-y-auto pr-1 text-sm">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Badge variant={statusVariant} className="uppercase">
+                            {scan.status}
+                        </Badge>
+                        {scan.scanned_at && (
+                            <span className="text-muted-foreground">
+                                Scanned:{' '}
+                                <span className="font-medium text-foreground">
+                                    {formatDate(scan.scanned_at)}
+                                </span>
+                            </span>
+                        )}
+                        {scan.document_url && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                asChild
+                                className="ml-auto"
+                            >
+                                <a
+                                    href={scan.document_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    View Document
+                                </a>
+                            </Button>
+                        )}
+                    </div>
+
+                    {scan.error_message && (
+                        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                            {scan.error_message}
+                        </div>
+                    )}
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {metrics.map((metric) => (
+                            <div
+                                key={metric.label}
+                                className="rounded-md border border-muted-foreground/20 bg-muted/40 p-3"
+                            >
+                                <p className="text-xs text-muted-foreground uppercase">
+                                    {metric.label}
+                                </p>
+                                <p className="mt-1 text-base font-semibold text-foreground">
+                                    {metric.value}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {Array.isArray(scan.sources) && scan.sources.length > 0 ? (
+                        <div className="space-y-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                Sources
+                            </p>
+                            <div className="space-y-3">
+                                {scan.sources.map((source, index) => (
+                                    <div
+                                        key={`${source.url ?? index}-${index}`}
+                                        className="space-y-3 rounded-md border border-muted-foreground/20 p-3"
+                                    >
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-sm font-semibold text-foreground">
+                                                {source.title ??
+                                                    source.url ??
+                                                    `Source ${index + 1}`}
+                                            </span>
+                                            {typeof source.score ===
+                                                'number' && (
+                                                <Badge variant="outline">
+                                                    {source.score}%
+                                                </Badge>
+                                            )}
+                                            {source.citation === true && (
+                                                <Badge variant="secondary">
+                                                    Citation
+                                                </Badge>
+                                            )}
+                                            {source.canAccess !== undefined && (
+                                                <Badge
+                                                    variant={
+                                                        source.canAccess
+                                                            ? 'outline'
+                                                            : 'destructive'
+                                                    }
+                                                >
+                                                    {source.canAccess
+                                                        ? 'Accessible'
+                                                        : 'Blocked'}
+                                                </Badge>
+                                            )}
+                                            {source.is_excluded === true && (
+                                                <Badge variant="secondary">
+                                                    Excluded
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {source.description && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {source.description}
+                                            </p>
+                                        )}
+
+                                        <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                                            {source.author && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Author:
+                                                    </span>{' '}
+                                                    {source.author}
+                                                </div>
+                                            )}
+                                            {source.source && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Source:
+                                                    </span>{' '}
+                                                    {source.source}
+                                                </div>
+                                            )}
+                                            {source.publishedDate && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Published:
+                                                    </span>{' '}
+                                                    {source.publishedDate}
+                                                </div>
+                                            )}
+                                            {typeof source.totalNumberOfWords ===
+                                                'number' && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Total Words:
+                                                    </span>{' '}
+                                                    {source.totalNumberOfWords.toLocaleString()}
+                                                </div>
+                                            )}
+                                            {typeof source.plagiarismWords ===
+                                                'number' && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Plagiarized Words:
+                                                    </span>{' '}
+                                                    {source.plagiarismWords.toLocaleString()}
+                                                </div>
+                                            )}
+                                            {typeof source.identicalWordCounts ===
+                                                'number' && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Identical Words:
+                                                    </span>{' '}
+                                                    {source.identicalWordCounts.toLocaleString()}
+                                                </div>
+                                            )}
+                                            {typeof source.similarWordCounts ===
+                                                'number' && (
+                                                <div>
+                                                    <span className="font-medium text-foreground">
+                                                        Similar Words:
+                                                    </span>{' '}
+                                                    {source.similarWordCounts.toLocaleString()}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {source.url && (
+                                            <p className="text-xs">
+                                                <a
+                                                    href={source.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-primary underline-offset-4 hover:underline"
+                                                >
+                                                    {source.url}
+                                                </a>
+                                            </p>
+                                        )}
+
+                                        {Array.isArray(source.similarWords) &&
+                                            source.similarWords.length > 0 && (
+                                                <div className="space-y-1 text-xs text-muted-foreground">
+                                                    <p className="font-semibold uppercase">
+                                                        Similar Words
+                                                    </p>
+                                                    <ul className="list-inside list-disc space-y-1">
+                                                        {source.similarWords.map(
+                                                            (
+                                                                word,
+                                                                wordIndex,
+                                                            ) => (
+                                                                <li
+                                                                    key={`${wordIndex}-${String(
+                                                                        word,
+                                                                    )}`}
+                                                                    className="text-foreground"
+                                                                >
+                                                                    {String(
+                                                                        word,
+                                                                    )}
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                        {Array.isArray(
+                                            source.plagiarismFound,
+                                        ) &&
+                                            source.plagiarismFound.length >
+                                                0 && (
+                                                <div className="space-y-2 text-xs text-muted-foreground">
+                                                    <p className="font-semibold uppercase">
+                                                        Plagiarized Passages
+                                                    </p>
+                                                    {source.plagiarismFound.map(
+                                                        (
+                                                            finding,
+                                                            findingIndex,
+                                                        ) => (
+                                                            <div
+                                                                key={`${findingIndex}-${finding.startIndex}-${finding.endIndex}`}
+                                                                className="rounded-md border border-muted-foreground/20 bg-muted/40 p-2"
+                                                            >
+                                                                {finding.sequence && (
+                                                                    <p className="whitespace-pre-wrap text-foreground">
+                                                                        {
+                                                                            finding.sequence
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                                {(typeof finding.startIndex ===
+                                                                    'number' ||
+                                                                    typeof finding.endIndex ===
+                                                                        'number') && (
+                                                                    <p className="mt-1 text-[10px] text-muted-foreground uppercase">
+                                                                        Span:{' '}
+                                                                        {typeof finding.startIndex ===
+                                                                        'number'
+                                                                            ? finding.startIndex
+                                                                            : '—'}{' '}
+                                                                        –{' '}
+                                                                        {typeof finding.endIndex ===
+                                                                        'number'
+                                                                            ? finding.endIndex
+                                                                            : '—'}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-muted-foreground">
+                            No sources were reported in this scan.
+                        </p>
+                    )}
+
+                    {scan.raw_response && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase">
+                                Raw Response
+                            </p>
+                            <pre className="max-h-56 overflow-auto rounded-md border border-muted-foreground/20 bg-muted/30 p-3 text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">
+                                {JSON.stringify(scan.raw_response, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                </div>
+                <DialogFooter className="gap-2 sm:justify-end">
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">
+                            Close
+                        </Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function RejectThesisDialog({
@@ -479,6 +885,9 @@ export default function ThesisTitleShow({
             ? `${thesisTitle.leader.name}${isLeaderViewer ? ' (You)' : ''}`
             : '—';
     const adviserDisplayName = thesisTitle.adviser?.name ?? '—';
+    const membersDisplayName = hasMembers
+        ? thesisTitle.members.map((member) => member.name).join(', ')
+        : '—';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -489,48 +898,51 @@ export default function ThesisTitleShow({
                     description={headingDescription}
                 />
 
-                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
-                    <div className="space-y-6">
-                        {showTeamSummary && (
-                            <div className="rounded-xl border border-sidebar-border/60 bg-muted/40 p-4 text-sm text-foreground dark:border-sidebar-border">
-                                <div className="space-y-3">
-                                    <p>
-                                        <span className="font-medium text-muted-foreground">
-                                            Leader:
-                                        </span>{' '}
-                                        {leaderDisplayName}
-                                    </p>
-                                    <p>
-                                        <span className="font-medium text-muted-foreground">
-                                            Adviser:
-                                        </span>{' '}
-                                        {adviserDisplayName}
-                                    </p>
-                                    {hasMembers && (
-                                        <p>
-                                            <span className="font-medium text-muted-foreground">
-                                                Members:
-                                            </span>{' '}
-                                            {thesisTitle.members
-                                                .map((member) => member.name)
-                                                .join(', ')}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                <div className="mt-6 space-y-6">
+                    {showTeamSummary && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Thesis Details</CardTitle>
+                                <CardDescription>
+                                    Snapshot of the project team and adviser assignments.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="grid gap-4 text-sm text-foreground">
+                                    <div>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            Leader
+                                        </dt>
+                                        <dd className="mt-1">{leaderDisplayName}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            Adviser
+                                        </dt>
+                                        <dd className="mt-1">{adviserDisplayName}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            Members
+                                        </dt>
+                                        <dd className="mt-1">{membersDisplayName}</dd>
+                                    </div>
+                                </dl>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                        <div className="space-y-6">
-                            <div className="flex justify-end">
+                    <section className="space-y-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h2 className="text-base font-semibold text-foreground">
+                                    Thesis Files
+                                </h2>
                                 {canManage && (
                                     <Button asChild>
                                         <Link
-                                            href={
-                                                ThesisController.create({
-                                                    thesis_title:
-                                                        thesisTitle.id,
-                                                }).url
-                                            }
+                                            href={ThesisController.create({
+                                                thesis_title: thesisTitle.id,
+                                            }).url}
                                             prefetch
                                         >
                                             Upload
@@ -552,6 +964,9 @@ export default function ThesisTitleShow({
                                                 Remark
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                Plagiarism Score
+                                            </th>
+                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                                 Uploaded
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -563,7 +978,7 @@ export default function ThesisTitleShow({
                                         {thesisTitle.theses.length === 0 && (
                                             <tr>
                                                 <td
-                                                    colSpan={5}
+                                                    colSpan={6}
                                                     className="px-6 py-10 text-center text-sm text-muted-foreground"
                                                 >
                                                     No thesis files yet.
@@ -620,15 +1035,28 @@ export default function ThesisTitleShow({
                                                             );
                                                         })()}
                                                     </td>
-                                                    <td className="px-6 py-4 text-left">
-                                                        {thesis.status ===
-                                                            'rejected' &&
-                                                        thesis.rejection_remark ? (
+                                                    <td className="px-6 py-4">
+                                                        {thesis.rejection_remark ? (
                                                             <ThesisRemarkDialog
                                                                 thesis={thesis}
                                                             />
                                                         ) : (
-                                                            '—'
+                                                            <span className="text-sm text-muted-foreground">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        {thesis.plagiarism_scan ? (
+                                                            <PlagiarismScanDialog
+                                                                scan={
+                                                                    thesis.plagiarism_scan
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <span className="text-sm text-muted-foreground">
+                                                                —
+                                                            </span>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 text-muted-foreground">
@@ -762,24 +1190,74 @@ export default function ThesisTitleShow({
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    </div>
+                    </section>
+                    {canAccessPrimaryFiles && (
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Thesis Documents</CardTitle>
+                                        <CardDescription>
+                                            Access the uploaded abstract and endorsement files.
+                                        </CardDescription>
+                                    </CardHeader>
 
-                    <div className="space-y-6">
-                        {canAccessPrimaryFiles && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Thesis Documents</CardTitle>
-                                    <CardDescription>
-                                        Access the uploaded abstract and
-                                        endorsement files.
-                                    </CardDescription>
-                                </CardHeader>
+                                    <CardContent>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {thesisTitle.abstract_pdf_url ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-sm font-medium"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={thesisTitle.abstract_pdf_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Abstract
+                                                    </a>
+                                                </Button>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">
+                                                    No abstract uploaded.
+                                                </span>
+                                            )}
 
-                                <CardContent>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        {/* Abstract Button/Message */}
-                                        {thesisTitle.abstract_pdf_url ? (
+                                            {thesisTitle.endorsement_pdf_url ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-sm font-medium"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={thesisTitle.endorsement_pdf_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Endorsement
+                                                    </a>
+                                                </Button>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">
+                                                    No endorsement uploaded.
+                                                </span>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Certificates</CardTitle>
+                                        <CardDescription>
+                                            Download eligibility certificates for scheduled defenses.
+                                        </CardDescription>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        <div className="grid grid-cols-1 gap-4">
                                             <Button
                                                 size="sm"
                                                 variant="outline"
@@ -787,23 +1265,13 @@ export default function ThesisTitleShow({
                                                 asChild
                                             >
                                                 <a
-                                                    href={
-                                                        thesisTitle.abstract_pdf_url
-                                                    }
+                                                    href={thesisTitle.certificates.proposal}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                 >
-                                                    Abstract
+                                                    Proposal Defense
                                                 </a>
                                             </Button>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">
-                                                No abstract uploaded.
-                                            </span>
-                                        )}
-
-                                        {/* Endorsement Button/Message */}
-                                        {thesisTitle.endorsement_pdf_url ? (
                                             <Button
                                                 size="sm"
                                                 variant="outline"
@@ -811,406 +1279,140 @@ export default function ThesisTitleShow({
                                                 asChild
                                             >
                                                 <a
-                                                    href={
-                                                        thesisTitle.endorsement_pdf_url
-                                                    }
+                                                    href={thesisTitle.certificates.final}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                 >
-                                                    Endorsement
+                                                    Final Defense
                                                 </a>
                                             </Button>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">
-                                                No endorsement uploaded.
-                                            </span>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
                         )}
-
-                        {canAccessPrimaryFiles && (
+                    <div className="grid gap-6 lg:grid-cols-2">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Certificates</CardTitle>
-                                    <CardDescription>
-                                        Download eligibility certificates for
-                                        scheduled defenses.
-                                    </CardDescription>
+                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <CardTitle>Defense Schedule</CardTitle>
+                                            <CardDescription>
+                                                {canReview
+                                                    ? 'Set the proposal and final defense schedule for this thesis title.'
+                                                    : 'Scheduled defense dates for this thesis title.'}
+                                            </CardDescription>
+                                        </div>
+                                    </div>
                                 </CardHeader>
 
                                 <CardContent>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="text-sm font-medium"
-                                            asChild
+                                    {canReview ? (
+                                        <Form
+                                            {...ThesisTitleController.updateSchedule.form(
+                                                {
+                                                    thesis_title: thesisTitle.id,
+                                                },
+                                            )}
+                                            options={{ preserveScroll: true }}
+                                            className="space-y-6"
                                         >
-                                            <a
-                                                href={
-                                                    thesisTitle.certificates
-                                                        .proposal
-                                                }
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                Proposal Defense
-                                            </a>
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="text-sm font-medium"
-                                            asChild
-                                        >
-                                            <a
-                                                href={
-                                                    thesisTitle.certificates
-                                                        .final
-                                                }
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                Final Defense
-                                            </a>
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        <Card>
-                            <CardHeader>
-                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                    <div>
-                                        <CardTitle>Defense Schedule</CardTitle>
-                                        <CardDescription>
-                                            {canReview
-                                                ? 'Set the proposal and final defense schedule for this thesis title.'
-                                                : 'Scheduled defense dates for this thesis title.'}
-                                        </CardDescription>
-                                    </div>
-                                </div>
-                            </CardHeader>
-
-                            <CardContent>
-                                {canReview ? (
-                                    <Form
-                                        {...ThesisTitleController.updateSchedule.form(
-                                            {
-                                                thesis_title: thesisTitle.id,
-                                            },
-                                        )}
-                                        options={{ preserveScroll: true }}
-                                        className="space-y-6"
-                                    >
-                                        {({
-                                            processing,
-                                            errors,
-                                            recentlySuccessful,
-                                        }) => (
-                                            <>
-                                                <div className="grid gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="proposal_defense_at">
-                                                            Proposal Defense
-                                                            Date
-                                                        </Label>
-                                                        <Input
-                                                            id="proposal_defense_at"
-                                                            name="proposal_defense_at"
-                                                            type="datetime-local"
-                                                            value={
-                                                                proposalDefenseInput
-                                                            }
-                                                            onChange={(event) =>
-                                                                setProposalDefenseInput(
-                                                                    event.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            aria-invalid={Boolean(
-                                                                errors.proposal_defense_at,
-                                                            )}
-                                                        />
-                                                        <InputError
-                                                            message={
-                                                                errors.proposal_defense_at
-                                                            }
-                                                        />
+                                            {({
+                                                processing,
+                                                errors,
+                                                recentlySuccessful,
+                                            }) => (
+                                                <>
+                                                    <div className="grid gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="proposal_defense_at">
+                                                                Proposal Defense Date
+                                                            </Label>
+                                                            <Input
+                                                                id="proposal_defense_at"
+                                                                name="proposal_defense_at"
+                                                                type="datetime-local"
+                                                                value={proposalDefenseInput}
+                                                                onChange={(event) =>
+                                                                    setProposalDefenseInput(
+                                                                        event.target.value,
+                                                                    )
+                                                                }
+                                                                aria-invalid={Boolean(
+                                                                    errors.proposal_defense_at,
+                                                                )}
+                                                            />
+                                                            <InputError
+                                                                message={
+                                                                    errors.proposal_defense_at
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="final_defense_at">
+                                                                Final Defense Date
+                                                            </Label>
+                                                            <Input
+                                                                id="final_defense_at"
+                                                                name="final_defense_at"
+                                                                type="datetime-local"
+                                                                value={finalDefenseInput}
+                                                                onChange={(event) =>
+                                                                    setFinalDefenseInput(
+                                                                        event.target.value,
+                                                                    )
+                                                                }
+                                                                aria-invalid={Boolean(
+                                                                    errors.final_defense_at,
+                                                                )}
+                                                            />
+                                                            <InputError
+                                                                message={
+                                                                    errors.final_defense_at
+                                                                }
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="final_defense_at">
-                                                            Final Defense Date
-                                                        </Label>
-                                                        <Input
-                                                            id="final_defense_at"
-                                                            name="final_defense_at"
-                                                            type="datetime-local"
-                                                            value={
-                                                                finalDefenseInput
-                                                            }
-                                                            onChange={(event) =>
-                                                                setFinalDefenseInput(
-                                                                    event.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            aria-invalid={Boolean(
-                                                                errors.final_defense_at,
-                                                            )}
-                                                        />
-                                                        <InputError
-                                                            message={
-                                                                errors.final_defense_at
-                                                            }
-                                                        />
-                                                    </div>
-                                                </div>
 
-                                                <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                                                    {recentlySuccessful && (
-                                                        <span className="text-sm text-muted-foreground">
-                                                            Saved!
-                                                        </span>
-                                                    )}
-                                                    <div className="flex flex-col gap-3 sm:flex-row">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() => {
-                                                                setProposalDefenseInput(
-                                                                    '',
-                                                                );
-                                                                setFinalDefenseInput(
-                                                                    '',
-                                                                );
-                                                            }}
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            Clear
-                                                        </Button>
-                                                        <Button
-                                                            type="submit"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            {processing ? (
-                                                                <>
-                                                                    <Spinner />
-                                                                    Saving...
-                                                                </>
-                                                            ) : (
-                                                                'Save'
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </Form>
-                                ) : (
-                                    <dl className="grid gap-4">
-                                        {scheduleSummary.map((item) => (
-                                            <div key={item.label}>
-                                                <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                                    {item.label}
-                                                </dt>
-                                                <dd className="mt-1 text-sm text-foreground">
-                                                    {item.value}
-                                                </dd>
-                                            </div>
-                                        ))}
-                                    </dl>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                {/* The original structure had two divs to handle space-between, but CardHeader is simpler */}
-                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                    <div>
-                                        <CardTitle>Panel Members</CardTitle>
-                                        <CardDescription>
-                                            {canReview
-                                                ? 'Assign panel members for this thesis.'
-                                                : 'Assigned panel members for this thesis.'}
-                                        </CardDescription>
-                                    </div>
-                                    {/* Any header-level actions (like an 'Edit' button) would go here */}
-                                </div>
-                            </CardHeader>
-
-                            <CardContent>
-                                {canReview && (
-                                    <Form
-                                        {...ThesisTitleController.updatePanel.form(
-                                            {
-                                                thesis_title: thesisTitle.id,
-                                            },
-                                        )}
-                                        options={{ preserveScroll: true }}
-                                        className="space-y-6" // Removed 'mt-4' as CardHeader provides appropriate vertical spacing
-                                    >
-                                        {({
-                                            processing,
-                                            errors,
-                                            recentlySuccessful,
-                                        }) => (
-                                            <>
-                                                <div className="grid gap-4 md:grid-cols-2">
-                                                    {PANEL_FIELDS.map(
-                                                        ({
-                                                            field,
-                                                            label,
-                                                            placeholder,
-                                                        }) => (
-                                                            <div
-                                                                key={field}
-                                                                className="space-y-2"
+                                                    <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                                                        {recentlySuccessful && (
+                                                            <span className="text-sm text-muted-foreground">
+                                                                Saved!
+                                                            </span>
+                                                        )}
+                                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => {
+                                                                    setProposalDefenseInput('');
+                                                                    setFinalDefenseInput('');
+                                                                }}
+                                                                disabled={processing}
                                                             >
-                                                                <Label
-                                                                    htmlFor={`panel-${field}`}
-                                                                >
-                                                                    {label}
-                                                                </Label>
-                                                                <Select
-                                                                    value={selectValueFor(
-                                                                        field,
-                                                                    )}
-                                                                    onValueChange={updatePanelStateValue(
-                                                                        field,
-                                                                    )}
-                                                                >
-                                                                    <SelectTrigger
-                                                                        id={`panel-${field}`}
-                                                                        aria-invalid={Boolean(
-                                                                            errors[
-                                                                                field
-                                                                            ],
-                                                                        )}
-                                                                    >
-                                                                        <SelectValue
-                                                                            placeholder={
-                                                                                placeholder
-                                                                            }
-                                                                        />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem
-                                                                            value={
-                                                                                UNASSIGNED_VALUE
-                                                                            }
-                                                                        >
-                                                                            Unassigned
-                                                                        </SelectItem>
-                                                                        {panelOptionsList.map(
-                                                                            (
-                                                                                option,
-                                                                            ) => (
-                                                                                <SelectItem
-                                                                                    key={
-                                                                                        option.id
-                                                                                    }
-                                                                                    value={
-                                                                                        option.id
-                                                                                    }
-                                                                                >
-                                                                                    {
-                                                                                        option.name
-                                                                                    }
-                                                                                </SelectItem>
-                                                                            ),
-                                                                        )}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                                <input
-                                                                    type="hidden"
-                                                                    name={field}
-                                                                    value={
-                                                                        panelState[
-                                                                            field
-                                                                        ]
-                                                                    }
-                                                                />
-                                                                <InputError
-                                                                    message={
-                                                                        errors[
-                                                                            field
-                                                                        ]
-                                                                    }
-                                                                />
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                </div>
-
-                                                {panelOptionsEmpty && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        No other teachers are
-                                                        currently available to
-                                                        assign.
-                                                    </p>
-                                                )}
-
-                                                <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
-                                                    {recentlySuccessful && (
-                                                        <span className="text-sm text-muted-foreground">
-                                                            Assigned!
-                                                        </span>
-                                                    )}
-                                                    <div className="flex flex-col gap-3 sm:flex-row">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                setPanelState({
-                                                                    chairman_id:
-                                                                        '',
-                                                                    member_one_id:
-                                                                        '',
-                                                                    member_two_id:
-                                                                        '',
-                                                                })
-                                                            }
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            Clear
-                                                        </Button>
-                                                        <Button
-                                                            type="submit"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            {processing ? (
-                                                                <>
-                                                                    <Spinner />
-                                                                    Assigning...
-                                                                </>
-                                                            ) : (
-                                                                'Assign'
-                                                            )}
-                                                        </Button>
+                                                                Clear
+                                                            </Button>
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={processing}
+                                                            >
+                                                                {processing ? (
+                                                                    <>
+                                                                        <Spinner />
+                                                                        Saving...
+                                                                    </>
+                                                                ) : (
+                                                                    'Save'
+                                                                )}
+                                                            </Button>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </Form>
-                                )}
-
-                                {!canReview && (
-                                    <div className="mt-4">
+                                                </>
+                                            )}
+                                        </Form>
+                                    ) : (
                                         <dl className="grid gap-4">
-                                            {panelSummary.map((item) => (
+                                            {scheduleSummary.map((item) => (
                                                 <div key={item.label}>
                                                     <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                                         {item.label}
@@ -1221,10 +1423,179 @@ export default function ThesisTitleShow({
                                                 </div>
                                             ))}
                                         </dl>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <CardTitle>Panel Members</CardTitle>
+                                            <CardDescription>
+                                                {canReview
+                                                    ? 'Assign panel members for this thesis.'
+                                                    : 'Assigned panel members for this thesis.'}
+                                            </CardDescription>
+                                        </div>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                </CardHeader>
+
+                                <CardContent>
+                                    {canReview && (
+                                        <Form
+                                            {...ThesisTitleController.updatePanel.form(
+                                                {
+                                                    thesis_title: thesisTitle.id,
+                                                },
+                                            )}
+                                            options={{ preserveScroll: true }}
+                                            className="space-y-6"
+                                        >
+                                            {({
+                                                processing,
+                                                errors,
+                                                recentlySuccessful,
+                                            }) => (
+                                                <>
+                                                    <div className="grid grid-cols-1 gap-4">
+                                                        {PANEL_FIELDS.map(
+                                                            ({
+                                                                field,
+                                                                label,
+                                                                placeholder,
+                                                            }) => (
+                                                                <div
+                                                                    key={field}
+                                                                    className="space-y-2"
+                                                                >
+                                                                    <Label
+                                                                        htmlFor={`panel-${field}`}
+                                                                    >
+                                                                        {label}
+                                                                    </Label>
+                                                                    <Select
+                                                                        value={selectValueFor(field)}
+                                                                        onValueChange={updatePanelStateValue(
+                                                                            field,
+                                                                        )}
+                                                                    >
+                                                                        <SelectTrigger
+                                                                            id={`panel-${field}`}
+                                                                            aria-invalid={Boolean(
+                                                                                errors[field],
+                                                                            )}
+                                                                        >
+                                                                            <SelectValue
+                                                                                placeholder={
+                                                                                    placeholder
+                                                                                }
+                                                                            />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem
+                                                                                value={
+                                                                                    UNASSIGNED_VALUE
+                                                                                }
+                                                                            >
+                                                                                Unassigned
+                                                                            </SelectItem>
+                                                                            {panelOptionsList.map(
+                                                                                (option) => (
+                                                                                    <SelectItem
+                                                                                        key={
+                                                                                            option.id
+                                                                                        }
+                                                                                        value={
+                                                                                            option.id
+                                                                                        }
+                                                                                    >
+                                                                                        {option.name}
+                                                                                    </SelectItem>
+                                                                                ),
+                                                                            )}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    <input
+                                                                        type="hidden"
+                                                                        name={field}
+                                                                        value={panelState[field]}
+                                                                    />
+                                                                    <InputError
+                                                                        message={
+                                                                            errors[field]
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+
+                                                    {panelOptionsEmpty && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            No other teachers are currently available to assign.
+                                                        </p>
+                                                    )}
+
+                                                    <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                                                        {recentlySuccessful && (
+                                                            <span className="text-sm text-muted-foreground">
+                                                                Assigned!
+                                                            </span>
+                                                        )}
+                                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    setPanelState({
+                                                                        chairman_id: '',
+                                                                        member_one_id: '',
+                                                                        member_two_id: '',
+                                                                    })
+                                                                }
+                                                                disabled={processing}
+                                                            >
+                                                                Clear
+                                                            </Button>
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={processing}
+                                                            >
+                                                                {processing ? (
+                                                                    <>
+                                                                        <Spinner />
+                                                                        Assigning...
+                                                                    </>
+                                                                ) : (
+                                                                    'Assign'
+                                                                )}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </Form>
+                                    )}
+
+                                    {!canReview && (
+                                        <div className="mt-4">
+                                            <dl className="grid gap-4">
+                                                {panelSummary.map((item) => (
+                                                    <div key={item.label}>
+                                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                                            {item.label}
+                                                        </dt>
+                                                        <dd className="mt-1 text-sm text-foreground">
+                                                            {item.value}
+                                                        </dd>
+                                                    </div>
+                                                ))}
+                                            </dl>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
                     </div>
                 </div>
             </div>

@@ -23,7 +23,7 @@ class UpdateThesisRequest extends FormRequest
     {
         return [
             'chapter' => ['required', 'string', 'max:255'],
-            'thesis_pdf' => ['sometimes', 'file', 'mimes:pdf'],
+            'thesis_pdf' => ['sometimes', 'file', 'mimes:doc,docx'],
         ];
     }
 }
