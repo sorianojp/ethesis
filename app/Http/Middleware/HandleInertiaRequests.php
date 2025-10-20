@@ -51,13 +51,24 @@ class HandleInertiaRequests extends Middleware
                     $user->loadMissing('roles');
 
                     $roles = $user->roles->pluck('name')->all();
+                    $stepAuth = $request->session()->get('step_auth');
 
                     if (empty($roles)) {
-                        $roles = data_get($request->session()->get('step_auth'), 'user.roles', []);
+                        $roles = data_get($stepAuth, 'user.roles', []);
                     }
 
                     if (! empty($roles)) {
                         $user->setAttribute('roles', $roles);
+                    }
+
+                    $stepAuthUser = data_get($stepAuth, 'user');
+
+                    if (is_array($stepAuthUser)) {
+                        foreach (['student', 'staff'] as $relation) {
+                            if (array_key_exists($relation, $stepAuthUser)) {
+                                $user->setAttribute($relation, $stepAuthUser[$relation]);
+                            }
+                        }
                     }
                 }),
             ],

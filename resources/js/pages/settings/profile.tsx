@@ -51,6 +51,48 @@ export default function Profile({
               })
               .filter((roleName): roleName is string => Boolean(roleName))
         : [];
+    const userRecord = auth.user as Record<string, unknown>;
+
+    const getNestedString = (source: unknown, path: string[]): string | null => {
+        let current: unknown = source;
+
+        for (const segment of path) {
+            if (!current || typeof current !== 'object' || current === null) {
+                return null;
+            }
+
+            current = (current as Record<string, unknown>)[segment];
+        }
+
+        if (typeof current !== 'string') {
+            return null;
+        }
+
+        const trimmed = current.trim();
+
+        return trimmed === '' ? null : trimmed;
+    };
+
+    const studentData = userRecord['student'];
+    const staffData = userRecord['staff'];
+
+    const studentCollegeName = getNestedString(studentData, ['college', 'name']);
+    const studentCourseName = getNestedString(studentData, ['course', 'name']);
+    const staffCollegeName = getNestedString(staffData, ['college', 'name']);
+
+    const academicDetails: Array<{ label: string; value: string }> = [];
+
+    if (studentCollegeName) {
+        academicDetails.push({ label: 'College', value: studentCollegeName });
+    }
+
+    if (studentCourseName) {
+        academicDetails.push({ label: 'Course', value: studentCourseName });
+    }
+
+    if (academicDetails.length === 0 && staffCollegeName) {
+        academicDetails.push({ label: 'College', value: staffCollegeName });
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -67,6 +109,28 @@ export default function Profile({
                         <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200">
                             <p className="font-medium text-neutral-900 dark:text-neutral-50">Roles</p>
                             <p className="mt-1">{roleNames.join(', ')}</p>
+                        </div>
+                    )}
+
+                    {academicDetails.length > 0 && (
+                        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200">
+                            <p className="font-medium text-neutral-900 dark:text-neutral-50">
+                                Academic details
+                            </p>
+
+                            <ul className="mt-1 space-y-1">
+                                {academicDetails.map(({ label, value }) => (
+                                    <li
+                                        key={`${label}-${value}`}
+                                        className="flex flex-wrap gap-1"
+                                    >
+                                        <span className="font-medium text-neutral-900 dark:text-neutral-50">
+                                            {label}:
+                                        </span>
+                                        <span>{value}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     )}
 
