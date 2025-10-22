@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookMarked, BookOpen, Folder, GraduationCap, LayoutGrid } from 'lucide-react';
+import { BookMarked, BookOpen, GraduationCap, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const dashboardNavItem: NavItem = {
@@ -24,11 +24,11 @@ const dashboardNavItem: NavItem = {
 };
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
+    // {
+    //     title: 'Repository',
+    //     href: 'https://github.com/laravel/react-starter-kit',
+    //     icon: Folder,
+    // },
     {
         title: 'Documentation',
         href: 'https://laravel.com/docs/starter-kits#react',

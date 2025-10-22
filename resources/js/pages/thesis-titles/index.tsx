@@ -179,7 +179,7 @@ export default function ThesisTitleIndex({
                 </div>
 
                 {thesisTitles.links.length > 1 && (
-                    <nav className="flex justify-end gap-2">
+                    <nav className="mt-2 flex justify-end gap-2">
                         {thesisTitles.links.map((link, index) => {
                             const label = link.label
                                 .replace('&laquo;', '«')
