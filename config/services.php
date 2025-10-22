@@ -38,6 +38,7 @@ return [
     'step' => [
         'base_url' => env('STEP_API_BASE_URL', 'https://udd.steps.com.ph/api'),
         'timeout' => env('STEP_API_TIMEOUT', 10),
+        'token' => env('STEP_API_TOKEN'),
     ],
 
     'winston_ai' => [

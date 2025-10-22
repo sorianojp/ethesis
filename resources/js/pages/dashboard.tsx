@@ -741,9 +741,18 @@ export default function Dashboard() {
     const { viewer, student, teacher } = dashboard;
 
     const viewerGreeting = (() => {
-        const [firstName] = viewer.name.split(/\s+/);
+        const rawName =
+            typeof viewer.name === 'string' ? viewer.name.trim() : '';
 
-        return firstName ?? viewer.name;
+        if (!rawName) {
+            return typeof viewer.email === 'string' && viewer.email !== ''
+                ? viewer.email
+                : 'there';
+        }
+
+        const [firstName] = rawName.split(/\s+/);
+
+        return firstName && firstName.length > 0 ? firstName : rawName;
     })();
 
     const showStudent = Boolean(student);

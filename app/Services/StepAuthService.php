@@ -47,4 +47,25 @@ class StepAuthService
             ->timeout($timeout)
             ->acceptJson();
     }
+
+    /**
+     * Retrieve a list of users from the STEP API.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function listUsers(array $payload = []): Response
+    {
+        $client = $this->client();
+        $token = (string) config('services.step.token', '');
+
+        if ($token !== '') {
+            $client = $client->withToken($token);
+        }
+
+        try {
+            return $client->get('/list/users', $payload);
+        } catch (ConnectionException $exception) {
+            throw $exception;
+        }
+    }
 }
