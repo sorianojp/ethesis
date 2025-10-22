@@ -120,6 +120,7 @@ interface TeacherSummary {
 interface DashboardPayload {
     viewer: {
         name: string;
+        email?: string | null;
         isStudent: boolean;
         isTeacher: boolean;
     };
@@ -228,6 +229,22 @@ function StudentSection({ data }: { data: StudentSummary }) {
             value: active ? active.statusCounts.rejected : 0,
         },
     ];
+    const upcomingMilestones = (active?.milestones ?? [])
+        .map((milestone) => {
+            const dateObj = new Date(milestone.date);
+
+            return {
+                ...milestone,
+                dateObj,
+            };
+        })
+        .filter(
+            ({ dateObj }) =>
+                !Number.isNaN(dateObj.getTime()) &&
+                dateObj.getTime() >= Date.now(),
+        )
+        .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
+        .slice(0, 3);
 
     return (
         <section className="space-y-6">
@@ -382,77 +399,145 @@ function StudentSection({ data }: { data: StudentSummary }) {
                         )}
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Needs Attention</CardTitle>
-                        <CardDescription>
-                            Recently submitted or returned chapters that still need
-                            work.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {data.needsAttention.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                You're all caught up. New submissions will appear
-                                here when they need your attention.
-                            </p>
-                        ) : (
-                            <ul className="space-y-3">
-                                {data.needsAttention.map((item) => {
-                                    const meta = STATUS_META[item.status];
-                                    const updatedRelative = relativeTime(item.updated_at);
+                <div className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Needs Attention</CardTitle>
+                            <CardDescription>
+                                Recently submitted or returned chapters that still
+                                need work.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {data.needsAttention.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    You're all caught up. New submissions will appear
+                                    here when they need your attention.
+                                </p>
+                            ) : (
+                                <ul className="space-y-3">
+                                    {data.needsAttention.map((item) => {
+                                        const meta = STATUS_META[item.status];
+                                        const updatedRelative = relativeTime(
+                                            item.updated_at,
+                                        );
 
-                                    return (
-                                        <li
-                                            key={`${item.id}-${item.chapter}`}
-                                            className="rounded-lg border border-border/60 px-3 py-2 text-sm transition-colors hover:border-border hover:bg-muted/40 dark:border-border"
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div>
-                                                    <p className="font-medium text-foreground">
-                                                        {item.chapter}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.title}
-                                                    </p>
+                                        return (
+                                            <li
+                                                key={`${item.id}-${item.chapter}`}
+                                                className="rounded-lg border border-border/60 px-3 py-2 text-sm transition-colors hover:border-border hover:bg-muted/40 dark:border-border"
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="font-medium text-foreground">
+                                                            {item.chapter}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.title}
+                                                        </p>
+                                                    </div>
+                                                    <Badge variant={meta.variant}>
+                                                        {meta.label}
+                                                    </Badge>
                                                 </div>
-                                                <Badge variant={meta.variant}>
-                                                    {meta.label}
-                                                </Badge>
-                                            </div>
-                                            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                                                <span>
-                                                    Updated:{' '}
-                                                    {formatDateTime(
-                                                        item.updated_at,
-                                                        {
-                                                            dateStyle: 'medium',
-                                                        },
+                                                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                                                    <span>
+                                                        Updated:{' '}
+                                                        {formatDateTime(
+                                                            item.updated_at,
+                                                            {
+                                                                dateStyle: 'medium',
+                                                            },
+                                                        )}
+                                                    </span>
+                                                    {updatedRelative && (
+                                                        <span>{updatedRelative}</span>
                                                     )}
-                                                </span>
-                                                {updatedRelative && (
-                                                    <span>{updatedRelative}</span>
-                                                )}
-                                            </div>
-                                            <div className="mt-2">
-                                                <Button
-                                                    variant="link"
-                                                    size="sm"
-                                                    className="px-0 text-xs"
-                                                    asChild
-                                                >
-                                                    <Link href={item.url} prefetch>
-                                                        View thesis
-                                                    </Link>
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
+                                                </div>
+                                                <div className="mt-2">
+                                                    <Button
+                                                        variant="link"
+                                                        size="sm"
+                                                        className="px-0 text-xs"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={item.url}
+                                                            prefetch
+                                                        >
+                                                            View thesis
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Upcoming Defenses</CardTitle>
+                            <CardDescription>
+                                Stay prepared for scheduled proposal and final
+                                defenses.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {upcomingMilestones.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No defense schedule yet. Defense dates will
+                                    appear here once they are set.
+                                </p>
+                            ) : (
+                                <ul className="space-y-3">
+                                    {upcomingMilestones.map((milestone) => {
+                                        const relative = relativeTime(
+                                            milestone.date,
+                                        );
+                                        const badgeLabel =
+                                            milestone.type === 'proposal'
+                                                ? 'Proposal'
+                                                : 'Final';
+                                        const badgeVariant =
+                                            milestone.type === 'proposal'
+                                                ? 'secondary'
+                                                : 'default';
+
+                                        return (
+                                            <li
+                                                key={`${milestone.type}-${milestone.date}`}
+                                                className="rounded-lg border border-border/60 px-3 py-2 text-sm transition-colors hover:border-border hover:bg-muted/40 dark:border-border"
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="font-medium text-foreground">
+                                                            {milestone.label}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {formatDateTime(
+                                                                milestone.date,
+                                                            )}
+                                                            {relative && (
+                                                                <span className="ml-2">
+                                                                    ({relative})
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                    <Badge variant={badgeVariant}>
+                                                        {badgeLabel}
+                                                    </Badge>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
 
             <Card>
