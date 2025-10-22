@@ -884,8 +884,6 @@ export default function ThesisTitleShow({
 
     const panelOptionsEmpty = panelOptionsList.length === 0;
 
-    const hasApprovalForms =
-        Boolean(approvalForms.undergrad) || Boolean(approvalForms.postgrad);
     const recommendedForm =
         programLevel === 'Postgrad'
             ? 'postgrad'
@@ -898,6 +896,47 @@ export default function ThesisTitleShow({
             : recommendedForm === 'undergrad'
               ? 'Undergraduate'
               : null;
+    const approvalFormEntries = useMemo(() => {
+        const entries: Array<{
+            key: 'undergrad' | 'postgrad';
+            label: string;
+            href: string;
+        }> = [];
+
+        if (approvalForms.undergrad) {
+            entries.push({
+                key: 'undergrad',
+                label: 'Undergraduate Form',
+                href: approvalForms.undergrad,
+            });
+        }
+
+        if (approvalForms.postgrad) {
+            entries.push({
+                key: 'postgrad',
+                label: 'Postgraduate Form',
+                href: approvalForms.postgrad,
+            });
+        }
+
+        if (recommendedForm) {
+            const recommendedEntry = entries.find(
+                (entry) => entry.key === recommendedForm,
+            );
+
+            if (recommendedEntry) {
+                return [recommendedEntry];
+            }
+        }
+
+        return entries;
+    }, [approvalForms.postgrad, approvalForms.undergrad, recommendedForm]);
+    const hasApprovalForms = approvalFormEntries.length > 0;
+    const showRecommendedFormNotice =
+        recommendedForm !== null &&
+        recommendedFormLabel !== null &&
+        approvalFormEntries.length === 1 &&
+        approvalFormEntries[0].key === recommendedForm;
 
     const breadcrumbs = canManage
         ? [
@@ -1390,56 +1429,26 @@ export default function ThesisTitleShow({
                                     </CardHeader>
                                     <CardContent>
                                         <div className="grid grid-cols-1 gap-4">
-                                            {approvalForms.undergrad && (
+                                            {approvalFormEntries.map((form) => (
                                                 <Button
+                                                    key={form.key}
                                                     size="sm"
                                                     variant="outline"
                                                     className="text-sm font-medium"
                                                     asChild
                                                 >
                                                     <a
-                                                        href={
-                                                            approvalForms.undergrad
-                                                        }
+                                                        href={form.href}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                     >
-                                                        Undergraduate Form
-                                                        {recommendedForm ===
-                                                            'undergrad' && (
-                                                            <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                                                Recommended
-                                                            </span>
-                                                        )}
+                                                        {form.label}
                                                     </a>
                                                 </Button>
-                                            )}
-                                            {approvalForms.postgrad && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-sm font-medium"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={
-                                                            approvalForms.postgrad
-                                                        }
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        Postgraduate Form
-                                                        {recommendedForm ===
-                                                            'postgrad' && (
-                                                            <span className="ml-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                                                                Recommended
-                                                            </span>
-                                                        )}
-                                                    </a>
-                                                </Button>
-                                            )}
+                                            ))}
                                         </div>
-                                        {recommendedFormLabel && (
+                                        {showRecommendedFormNotice &&
+                                            recommendedFormLabel && (
                                             <p className="mt-3 text-xs text-muted-foreground">
                                                 Recommended based on program
                                                 level:{' '}
