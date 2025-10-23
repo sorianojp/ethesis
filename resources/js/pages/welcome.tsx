@@ -1,4 +1,3 @@
-import TextLink from '@/components/text-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -246,7 +245,7 @@ export default function Welcome() {
                                 rel="noreferrer"
                                 className="text-xs text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline"
                             >
-                                University website
+                                Universidad de Dagupan
                             </a>
                         </div>
                     </div>
