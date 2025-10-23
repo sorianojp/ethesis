@@ -1,9 +1,9 @@
 import ThesisTitleController from '@/actions/App/Http/Controllers/ThesisTitleController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { Form, Head, Link } from '@inertiajs/react';
+import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs = [
@@ -69,6 +70,7 @@ export default function ThesisTitleCreate({
 
     const adviserSelected = adviserId !== '';
     const [memberIds, setMemberIds] = useState<string[]>([]);
+    const [memberQuery, setMemberQuery] = useState('');
 
     const studentOptions = useMemo(
         () =>
@@ -79,19 +81,40 @@ export default function ThesisTitleCreate({
         [students],
     );
 
-    const toggleMember = (id: string, checked: boolean | 'indeterminate') => {
-        setMemberIds((prev) => {
-            const normalized = checked === true;
-            if (normalized) {
-                if (prev.includes(id)) {
-                    return prev;
-                }
+    const selectedMembers = useMemo(
+        () => studentOptions.filter((option) => memberIds.includes(option.id)),
+        [studentOptions, memberIds],
+    );
 
-                return [...prev, id];
+    const filteredMembers = useMemo(() => {
+        const query = memberQuery.trim().toLowerCase();
+
+        return studentOptions.filter((student) => {
+            if (memberIds.includes(student.id)) {
+                return false;
             }
 
-            return prev.filter((value) => value !== id);
+            if (query === '') {
+                return true;
+            }
+
+            return student.name.toLowerCase().includes(query);
         });
+    }, [studentOptions, memberIds, memberQuery]);
+
+    const addMember = (id: string) => {
+        setMemberIds((prev) => {
+            if (prev.includes(id)) {
+                return prev;
+            }
+
+            return [...prev, id];
+        });
+        setMemberQuery('');
+    };
+
+    const removeMember = (id: string) => {
+        setMemberIds((prev) => prev.filter((value) => value !== id));
     };
 
     return (
@@ -123,7 +146,7 @@ export default function ThesisTitleCreate({
                                         <InputError message={errors.title} />
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         <Label>Members</Label>
                                         {studentOptions.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">
@@ -131,36 +154,71 @@ export default function ThesisTitleCreate({
                                                 as members.
                                             </p>
                                         ) : (
-                                            <div className="space-y-2 rounded-md border border-border p-3">
-                                                {studentOptions.map(
-                                                    (student) => (
-                                                        <label
-                                                            key={student.id}
-                                                            className="flex items-center gap-2"
-                                                            htmlFor={`member-${student.id}`}
+                                            <div className="relative space-y-3">
+                                                <Input
+                                                    value={memberQuery}
+                                                    onChange={(event) =>
+                                                        setMemberQuery(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Search students by name"
+                                                    aria-label="Search members"
+                                                />
+                                                {memberQuery.trim() !== '' && (
+                                                    <div className="absolute z-10 mt-2 max-h-48 w-full space-y-1 overflow-y-auto rounded-md border border-border bg-white shadow-lg">
+                                                        {filteredMembers.length === 0 ? (
+                                                            <p className="px-3 py-2 text-sm text-muted-foreground">
+                                                                No students match your search.
+                                                            </p>
+                                                        ) : (
+                                                            filteredMembers.map((student) => (
+                                                                <Button
+                                                                    key={student.id}
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    className="h-auto w-full justify-start px-3 py-2 text-left text-sm"
+                                                                    onClick={() => addMember(student.id)}
+                                                                >
+                                                                    {student.name}
+                                                                </Button>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {selectedMembers.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedMembers.map(
+                                                    (member) => (
+                                                        <Badge
+                                                            key={member.id}
+                                                            variant="secondary"
+                                                            className="flex items-center gap-1"
                                                         >
-                                                            <Checkbox
-                                                                id={`member-${student.id}`}
-                                                                checked={memberIds.includes(
-                                                                    student.id,
-                                                                )}
-                                                                onCheckedChange={(
-                                                                    checked,
-                                                                ) =>
-                                                                    toggleMember(
-                                                                        student.id,
-                                                                        checked,
+                                                            <span>
+                                                                {member.name}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    removeMember(
+                                                                        member.id,
                                                                     )
                                                                 }
-                                                            />
-                                                            <span>
-                                                                {student.name}
-                                                            </span>
-                                                        </label>
+                                                                className="rounded-full p-0.5 text-muted-foreground transition hover:text-destructive"
+                                                                aria-label={`Remove ${member.name}`}
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </button>
+                                                        </Badge>
                                                     ),
                                                 )}
                                             </div>
                                         )}
+
                                         {memberIds.map((id, index) => (
                                             <input
                                                 key={id}
