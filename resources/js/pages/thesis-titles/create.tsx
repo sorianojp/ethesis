@@ -167,22 +167,35 @@ export default function ThesisTitleCreate({
                                                 />
                                                 {memberQuery.trim() !== '' && (
                                                     <div className="absolute z-10 mt-2 max-h-48 w-full space-y-1 overflow-y-auto rounded-md border border-border bg-white shadow-lg">
-                                                        {filteredMembers.length === 0 ? (
+                                                        {filteredMembers.length ===
+                                                        0 ? (
                                                             <p className="px-3 py-2 text-sm text-muted-foreground">
-                                                                No students match your search.
+                                                                No students
+                                                                match your
+                                                                search.
                                                             </p>
                                                         ) : (
-                                                            filteredMembers.map((student) => (
-                                                                <Button
-                                                                    key={student.id}
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    className="h-auto w-full justify-start px-3 py-2 text-left text-sm"
-                                                                    onClick={() => addMember(student.id)}
-                                                                >
-                                                                    {student.name}
-                                                                </Button>
-                                                            ))
+                                                            filteredMembers.map(
+                                                                (student) => (
+                                                                    <Button
+                                                                        key={
+                                                                            student.id
+                                                                        }
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        className="h-auto w-full justify-start px-3 py-2 text-left text-sm"
+                                                                        onClick={() =>
+                                                                            addMember(
+                                                                                student.id,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            student.name
+                                                                        }
+                                                                    </Button>
+                                                                ),
+                                                            )
                                                         )}
                                                     </div>
                                                 )}

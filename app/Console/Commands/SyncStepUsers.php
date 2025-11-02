@@ -123,7 +123,6 @@ class SyncStepUsers extends Command
                 }
 
                 $email = filter_var($userData['email'] ?? null, FILTER_VALIDATE_EMAIL);
-                $name = $userData['name'] ?? null;
 
                 if (! is_string($email)) {
                     $skipped++;
@@ -137,11 +136,11 @@ class SyncStepUsers extends Command
                     continue;
                 }
 
-                DB::transaction(function () use ($email, $name, $userData, &$created, &$updated) {
+                DB::transaction(function () use ($email, $userData, &$created, &$updated) {
                     $user = User::firstOrNew(['email' => $email]);
                     $isNew = ! $user->exists;
 
-                    $user->name = is_string($name) && $name !== '' ? $name : ($user->name ?? $email);
+                    $user->name = $this->resolveDisplayName($userData, $user, $email);
 
                     if ($isNew) {
                         $user->password = Hash::make(Str::random(40));
@@ -195,6 +194,29 @@ class SyncStepUsers extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    private function resolveDisplayName(array $userData, User $user, string $fallbackEmail): string
+    {
+        $fullName = $this->normalizeName($userData['full_name'] ?? null);
+        $name = $this->normalizeName($userData['name'] ?? null);
+        $current = $this->normalizeName($user->name);
+
+        return $fullName
+            ?? $name
+            ?? $current
+            ?? $fallbackEmail;
+    }
+
+    private function normalizeName(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $normalized = trim(preg_replace('/\s+/', ' ', $value));
+
+        return $normalized === '' ? null : $normalized;
     }
 
     /**
