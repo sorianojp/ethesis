@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('thesis-titles/advisees', [ThesisTitleController::class, 'advisees'])->name('thesis-titles.advisees');
+    Route::get('thesis-titles/options', [ThesisTitleController::class, 'options'])->name('thesis-titles.options');
     Route::resource('thesis-titles', ThesisTitleController::class);
     Route::resource('thesis-titles.theses', ThesisController::class);
     Route::patch('thesis-titles/{thesis_title}/theses/{thesis}/status', [ThesisController::class, 'updateStatus'])

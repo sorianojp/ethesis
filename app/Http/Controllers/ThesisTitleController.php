@@ -12,6 +12,8 @@ use App\Models\ThesisTitle;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -87,18 +89,90 @@ class ThesisTitleController extends Controller
     {
         $this->ensureStudent($request);
 
-        $teachers = User::teachers()
+        return Inertia::render('thesis-titles/create', [
+            'teachers' => $this->teacherOptions($request),
+            'students' => $this->studentOptions($request),
+        ]);
+    }
+
+    public function options(Request $request): JsonResponse
+    {
+        $this->ensureStudent($request);
+
+        $type = (string) $request->string('type')->trim();
+
+        if (! in_array($type, ['teachers', 'students'], true)) {
+            throw ValidationException::withMessages([
+                'type' => __('The provided type is invalid.'),
+            ]);
+        }
+
+        $limit = (int) $request->input('limit', 20);
+        $limit = max(1, min($limit, 50));
+
+        $search = (string) $request->string('search')->trim();
+
+        $query = $type === 'teachers'
+            ? User::teachers()
+            : User::students()->whereKeyNot($request->user()->id);
+
+        if ($search !== '') {
+            $query->where('name', 'like', '%' . addcslashes($search, '%_') . '%');
+        }
+
+        $results = $query
             ->orderBy('name')
-            ->get(['id', 'name']);
-        $students = User::students()
-            ->whereKeyNot($request->user()->id)
-            ->orderBy('name')
+            ->limit($limit + 1)
             ->get(['id', 'name']);
 
-        return Inertia::render('thesis-titles/create', [
-            'teachers' => $teachers,
-            'students' => $students,
+        $hasMore = $results->count() > $limit;
+
+        if ($hasMore) {
+            $results = $results->slice(0, $limit);
+        }
+
+        return response()->json([
+            'data' => $results->values()->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ])->all(),
+            'meta' => [
+                'has_more' => $hasMore,
+            ],
         ]);
+    }
+
+    private function teacherOptions(Request $request): array
+    {
+        return $this->buildOptions(
+            User::teachers(),
+            (string) $request->string('teacher_search')->trim()
+        );
+    }
+
+    private function studentOptions(Request $request): array
+    {
+        return $this->buildOptions(
+            User::students()->whereKeyNot($request->user()->id),
+            (string) $request->string('student_search')->trim()
+        );
+    }
+
+    private function buildOptions(Builder $query, string $search, int $limit = 20): array
+    {
+        if ($search !== '') {
+            $query->where('name', 'like', '%' . addcslashes($search, '%_') . '%');
+        }
+
+        return $query
+            ->orderBy('name')
+            ->limit($limit)
+            ->get(['id', 'name'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ])
+            ->all();
     }
 
     public function store(StoreThesisTitleRequest $request): RedirectResponse

@@ -16,7 +16,8 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { Form, Head, Link } from '@inertiajs/react';
 import { X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Spinner } from '@/components/ui/spinner';
 
 const breadcrumbs = [
     {
@@ -40,11 +41,34 @@ interface ThesisTitleCreateProps {
     }[];
 }
 
+function mergeOptions(...lists: Option[][]): Option[] {
+    const seen = new Set<string>();
+    const result: Option[] = [];
+
+    lists.forEach((list) => {
+        list.forEach((option) => {
+            if (seen.has(option.id)) {
+                return;
+            }
+
+            result.push(option);
+            seen.add(option.id);
+        });
+    });
+
+    return result;
+}
+
+type Option = {
+    id: string;
+    name: string;
+};
+
 export default function ThesisTitleCreate({
     teachers,
     students,
 }: ThesisTitleCreateProps) {
-    const teacherOptions = useMemo(
+    const initialTeacherOptions = useMemo<Option[]>(
         () =>
             teachers.map((teacher) => ({
                 id: teacher.id.toString(),
@@ -53,26 +77,7 @@ export default function ThesisTitleCreate({
         [teachers],
     );
 
-    const [adviserId, setAdviserId] = useState<string>(
-        teacherOptions[0]?.id ?? '',
-    );
-
-    useEffect(() => {
-        if (teacherOptions.length === 0) {
-            setAdviserId('');
-            return;
-        }
-
-        setAdviserId((current) =>
-            current !== '' ? current : (teacherOptions[0]?.id ?? ''),
-        );
-    }, [teacherOptions]);
-
-    const adviserSelected = adviserId !== '';
-    const [memberIds, setMemberIds] = useState<string[]>([]);
-    const [memberQuery, setMemberQuery] = useState('');
-
-    const studentOptions = useMemo(
+    const initialStudentOptions = useMemo<Option[]>(
         () =>
             students.map((student) => ({
                 id: student.id.toString(),
@@ -81,40 +86,209 @@ export default function ThesisTitleCreate({
         [students],
     );
 
-    const selectedMembers = useMemo(
-        () => studentOptions.filter((option) => memberIds.includes(option.id)),
-        [studentOptions, memberIds],
+    const [teacherOptions, setTeacherOptions] = useState<Option[]>(
+        initialTeacherOptions,
+    );
+    const [teacherQuery, setTeacherQuery] = useState('');
+    const [teacherLoading, setTeacherLoading] = useState(false);
+    const [teacherError, setTeacherError] = useState<string | null>(null);
+    const [selectedAdviser, setSelectedAdviser] = useState<Option | null>(
+        initialTeacherOptions[0] ?? null,
     );
 
-    const filteredMembers = useMemo(() => {
-        const query = memberQuery.trim().toLowerCase();
+    const [studentOptions, setStudentOptions] = useState<Option[]>(
+        initialStudentOptions,
+    );
+    const [studentLoading, setStudentLoading] = useState(false);
+    const [studentError, setStudentError] = useState<string | null>(null);
+    const [memberQuery, setMemberQuery] = useState('');
+    const [selectedMembers, setSelectedMembers] = useState<Option[]>([]);
 
-        return studentOptions.filter((student) => {
-            if (memberIds.includes(student.id)) {
-                return false;
+    useEffect(() => {
+        setTeacherOptions((current) =>
+            mergeOptions(
+                initialTeacherOptions,
+                selectedAdviser ? [selectedAdviser] : [],
+                current,
+            ),
+        );
+
+        if (!selectedAdviser && initialTeacherOptions.length > 0) {
+            setSelectedAdviser(initialTeacherOptions[0]);
+        }
+    }, [initialTeacherOptions, selectedAdviser]);
+
+    useEffect(() => {
+        setStudentOptions(initialStudentOptions);
+    }, [initialStudentOptions]);
+
+    const fetchOptions = useCallback(
+        async (
+            type: 'teachers' | 'students',
+            query: string,
+            signal: AbortSignal,
+        ): Promise<Option[]> => {
+            const params = new URLSearchParams({
+                type,
+                limit: '20',
+            });
+
+            const trimmed = query.trim();
+
+            if (trimmed !== '') {
+                params.set('search', trimmed);
             }
 
-            if (query === '') {
-                return true;
+            const response = await fetch(
+                `/thesis-titles/options?${params.toString()}`,
+                {
+                    method: 'GET',
+                    signal,
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to load ${type}`);
             }
 
-            return student.name.toLowerCase().includes(query);
-        });
-    }, [studentOptions, memberIds, memberQuery]);
+            const payload = (await response.json()) as {
+                data: { id: number; name: string }[];
+            };
 
-    const addMember = (id: string) => {
-        setMemberIds((prev) => {
-            if (prev.includes(id)) {
+            return payload.data.map((item) => ({
+                id: item.id.toString(),
+                name: item.name,
+            }));
+        },
+        [],
+    );
+
+    useEffect(() => {
+        const trimmed = teacherQuery.trim();
+
+        if (trimmed === '') {
+            setTeacherLoading(false);
+            setTeacherError(null);
+            setTeacherOptions((current) =>
+                mergeOptions(
+                    initialTeacherOptions,
+                    selectedAdviser ? [selectedAdviser] : [],
+                    current,
+                ),
+            );
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            setTeacherLoading(true);
+            setTeacherError(null);
+
+            fetchOptions('teachers', trimmed, controller.signal)
+                .then((options) => {
+                    if (controller.signal.aborted) {
+                        return;
+                    }
+
+                    setTeacherOptions(
+                        mergeOptions(
+                            options,
+                            selectedAdviser ? [selectedAdviser] : [],
+                        ),
+                    );
+                })
+                .catch((error: unknown) => {
+                    if (controller.signal.aborted) {
+                        return;
+                    }
+
+                    console.error(error);
+                    setTeacherError('Unable to load advisers right now.');
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) {
+                        setTeacherLoading(false);
+                    }
+                });
+        }, 300);
+
+        return () => {
+            controller.abort();
+            clearTimeout(timeout);
+        };
+    }, [teacherQuery, initialTeacherOptions, selectedAdviser, fetchOptions]);
+
+    useEffect(() => {
+        const trimmed = memberQuery.trim();
+
+        if (trimmed === '') {
+            setStudentLoading(false);
+            setStudentError(null);
+            setStudentOptions(initialStudentOptions);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            setStudentLoading(true);
+            setStudentError(null);
+
+            fetchOptions('students', trimmed, controller.signal)
+                .then((options) => {
+                    if (controller.signal.aborted) {
+                        return;
+                    }
+
+                    setStudentOptions(options);
+                })
+                .catch((error: unknown) => {
+                    if (controller.signal.aborted) {
+                        return;
+                    }
+
+                    console.error(error);
+                    setStudentError('Unable to load students right now.');
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) {
+                        setStudentLoading(false);
+                    }
+                });
+        }, 300);
+
+        return () => {
+            controller.abort();
+            clearTimeout(timeout);
+        };
+    }, [memberQuery, initialStudentOptions, fetchOptions]);
+
+    const adviserSelected = selectedAdviser !== null;
+
+    const filteredMembers = useMemo(
+        () =>
+            studentOptions.filter(
+                (option) =>
+                    !selectedMembers.some((member) => member.id === option.id),
+            ),
+        [studentOptions, selectedMembers],
+    );
+
+    const addMember = (member: Option) => {
+        setSelectedMembers((prev) => {
+            if (prev.some((item) => item.id === member.id)) {
                 return prev;
             }
 
-            return [...prev, id];
+            return [...prev, member];
         });
         setMemberQuery('');
     };
 
     const removeMember = (id: string) => {
-        setMemberIds((prev) => prev.filter((value) => value !== id));
+        setSelectedMembers((prev) => prev.filter((value) => value.id !== id));
     };
 
     return (
@@ -148,7 +322,8 @@ export default function ThesisTitleCreate({
 
                                     <div className="space-y-3">
                                         <Label>Members</Label>
-                                        {studentOptions.length === 0 ? (
+                                        {initialStudentOptions.length === 0 &&
+                                        selectedMembers.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">
                                                 No students are available to add
                                                 as members.
@@ -167,7 +342,18 @@ export default function ThesisTitleCreate({
                                                 />
                                                 {memberQuery.trim() !== '' && (
                                                     <div className="absolute z-10 mt-2 max-h-48 w-full space-y-1 overflow-y-auto rounded-md border border-border bg-white shadow-lg">
-                                                        {filteredMembers.length ===
+                                                        {studentLoading ? (
+                                                            <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                                                                <Spinner className="h-4 w-4" />
+                                                                <span>
+                                                                    Searching…
+                                                                </span>
+                                                            </div>
+                                                        ) : studentError ? (
+                                                            <p className="px-3 py-2 text-sm text-destructive">
+                                                                {studentError}
+                                                            </p>
+                                                        ) : filteredMembers.length ===
                                                         0 ? (
                                                             <p className="px-3 py-2 text-sm text-muted-foreground">
                                                                 No students
@@ -186,7 +372,7 @@ export default function ThesisTitleCreate({
                                                                         className="h-auto w-full justify-start px-3 py-2 text-left text-sm"
                                                                         onClick={() =>
                                                                             addMember(
-                                                                                student.id,
+                                                                                student,
                                                                             )
                                                                         }
                                                                     >
@@ -232,12 +418,12 @@ export default function ThesisTitleCreate({
                                             </div>
                                         )}
 
-                                        {memberIds.map((id, index) => (
+                                        {selectedMembers.map((member, index) => (
                                             <input
-                                                key={id}
+                                                key={member.id}
                                                 type="hidden"
                                                 name={`member_ids[${index}]`}
-                                                value={id}
+                                                value={member.id}
                                             />
                                         ))}
                                         <InputError
@@ -246,51 +432,106 @@ export default function ThesisTitleCreate({
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="adviser_id">
+                                        <Label htmlFor="adviser-search">
                                             Adviser
                                         </Label>
-                                        <Select
-                                            value={adviserId}
-                                            onValueChange={setAdviserId}
-                                            disabled={
-                                                teacherOptions.length === 0
-                                            }
-                                        >
-                                            <SelectTrigger
-                                                id="adviser_id"
-                                                aria-invalid={Boolean(
-                                                    errors.adviser_id,
-                                                )}
+                                        <div className="space-y-2">
+                                            <Input
+                                                id="adviser-search"
+                                                value={teacherQuery}
+                                                onChange={(event) =>
+                                                    setTeacherQuery(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="Search advisers by name"
+                                                aria-label="Search advisers"
+                                            />
+                                            <Select
+                                                value={selectedAdviser?.id ?? ''}
+                                                onValueChange={(value) => {
+                                                    const adviser =
+                                                        teacherOptions.find(
+                                                            (option) =>
+                                                                option.id ===
+                                                                value,
+                                                        ) ?? null;
+
+                                                    setSelectedAdviser(
+                                                        adviser,
+                                                    );
+                                                }}
+                                                disabled={
+                                                    teacherOptions.length ===
+                                                        0 && !teacherLoading
+                                                }
                                             >
-                                                <SelectValue placeholder="Choose adviser" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {teacherOptions.map(
-                                                    (teacher) => (
-                                                        <SelectItem
-                                                            value={teacher.id}
-                                                            key={teacher.id}
-                                                        >
-                                                            {teacher.name}
-                                                        </SelectItem>
-                                                    ),
+                                                <SelectTrigger
+                                                    id="adviser_id"
+                                                    aria-invalid={Boolean(
+                                                        errors.adviser_id,
+                                                    )}
+                                                >
+                                                    <SelectValue
+                                                        placeholder={
+                                                            teacherLoading
+                                                                ? 'Searching…'
+                                                                : 'Choose adviser'
+                                                        }
+                                                    />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {teacherOptions.map(
+                                                        (teacher) => (
+                                                            <SelectItem
+                                                                value={
+                                                                    teacher.id
+                                                                }
+                                                                key={
+                                                                    teacher.id
+                                                                }
+                                                            >
+                                                                {teacher.name}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                            {teacherLoading && (
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <Spinner className="h-3 w-3" />
+                                                    <span>
+                                                        Loading advisers…
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {teacherError && (
+                                                <p className="text-xs text-destructive">
+                                                    {teacherError}
+                                                </p>
+                                            )}
+                                            {teacherOptions.length === 0 &&
+                                                !teacherLoading && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {teacherQuery.trim() ===
+                                                            '' &&
+                                                        initialTeacherOptions.length ===
+                                                            0
+                                                            ? 'No teachers available. Contact an administrator.'
+                                                            : 'No advisers match your search.'}
+                                                    </p>
                                                 )}
-                                            </SelectContent>
-                                        </Select>
-                                        <input
-                                            type="hidden"
-                                            name="adviser_id"
-                                            value={adviserId}
-                                        />
-                                        {teacherOptions.length === 0 && (
-                                            <p className="text-xs text-destructive">
-                                                No teachers available. Contact
-                                                an administrator.
-                                            </p>
-                                        )}
-                                        <InputError
-                                            message={errors.adviser_id}
-                                        />
+                                            <input
+                                                type="hidden"
+                                                name="adviser_id"
+                                                value={
+                                                    selectedAdviser?.id ?? ''
+                                                }
+                                            />
+                                            <InputError
+                                                message={errors.adviser_id}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="space-y-2">
