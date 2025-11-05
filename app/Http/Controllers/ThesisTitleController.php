@@ -147,7 +147,7 @@ class ThesisTitleController extends Controller
         return $this->buildOptions(
             User::teachers(),
             (string) $request->string('teacher_search')->trim(),
-            20,
+            null,
             $includeIds
         );
     }
@@ -162,7 +162,7 @@ class ThesisTitleController extends Controller
         );
     }
 
-    private function buildOptions(Builder $baseQuery, string $search, int $limit = 20, array $includeIds = []): array
+    private function buildOptions(Builder $baseQuery, string $search, ?int $limit = 20, array $includeIds = []): array
     {
         $query = clone $baseQuery;
 
@@ -170,11 +170,13 @@ class ThesisTitleController extends Controller
             $query->where('name', 'like', '%' . addcslashes($search, '%_') . '%');
         }
 
-        $results = $query
-            ->orderBy('name')
-            ->limit($limit)
-            ->get(['id', 'name'])
-            ->values();
+        $query->orderBy('name');
+
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        $results = $query->get(['id', 'name'])->values();
 
         if ($includeIds !== []) {
             $missingIds = collect($includeIds)
