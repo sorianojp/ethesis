@@ -224,7 +224,7 @@ function ThesisRemarkDialog({ thesis }: ThesisRemarkDialogProps) {
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button type="button" size="sm" variant="link" className="px-0">
-                    View Remark
+                    View
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
@@ -1068,9 +1068,6 @@ export default function ThesisTitleShow({
                                             Chapter/Other File
                                         </th>
                                         <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-                                            Program Level
-                                        </th>
-                                        <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                             Status
                                         </th>
                                         <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -1091,7 +1088,7 @@ export default function ThesisTitleShow({
                                     {thesisTitle.theses.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={7}
+                                                colSpan={6}
                                                 className="px-6 py-10 text-center text-sm text-muted-foreground"
                                             >
                                                 No thesis files yet.
@@ -1100,10 +1097,6 @@ export default function ThesisTitleShow({
                                     )}
 
                                     {thesisTitle.theses.map((thesis) => {
-                                        const thesisProgramLevel =
-                                            thesis.post_grad
-                                                ? 'Postgrad'
-                                                : 'Undergrad';
                                         const isStatusFinal =
                                             thesis.status === 'approved' ||
                                             thesis.status === 'rejected';
@@ -1128,9 +1121,6 @@ export default function ThesisTitleShow({
                                                     ) : (
                                                         thesis.chapter
                                                     )}
-                                                </td>
-                                                <td className="px-6 py-4 text-muted-foreground">
-                                                    {thesisProgramLevel}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {(() => {
@@ -1449,15 +1439,15 @@ export default function ThesisTitleShow({
                                         </div>
                                         {showRecommendedFormNotice &&
                                             recommendedFormLabel && (
-                                            <p className="mt-3 text-xs text-muted-foreground">
-                                                Recommended based on program
-                                                level:{' '}
-                                                <span className="font-medium text-foreground">
-                                                    {recommendedFormLabel}
-                                                </span>
-                                                .
-                                            </p>
-                                        )}
+                                                <p className="mt-3 text-xs text-muted-foreground">
+                                                    Recommended based on program
+                                                    level:{' '}
+                                                    <span className="font-medium text-foreground">
+                                                        {recommendedFormLabel}
+                                                    </span>
+                                                    .
+                                                </p>
+                                            )}
                                     </CardContent>
                                 </Card>
                             )}

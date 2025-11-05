@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\ThesisStatus;
 use App\Models\PlagiarismScan;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -19,6 +20,8 @@ class ProcessPlagiarismScan implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    private const REJECTION_THRESHOLD_PERCENT = 10;
 
     public function __construct(
         private readonly PlagiarismScan $scan
@@ -95,9 +98,11 @@ class ProcessPlagiarismScan implements ShouldQueue
 
         $data = $response->json();
 
+        $score = Arr::get($data, 'result.score');
+
         $this->scan->update([
             'status' => 'completed',
-            'score' => Arr::get($data, 'result.score'),
+            'score' => $score,
             'source_count' => Arr::get($data, 'result.sourceCounts'),
             'text_word_count' => Arr::get($data, 'result.textWordCounts'),
             'total_plagiarism_words' => Arr::get($data, 'result.totalPlagiarismWords'),
@@ -108,6 +113,8 @@ class ProcessPlagiarismScan implements ShouldQueue
             'error_message' => null,
             'scanned_at' => now(),
         ]);
+
+        $this->rejectThesisWhenScoreExceedsThreshold($score);
     }
 
     private function resolveFileUrl(string $path): ?string
@@ -117,5 +124,39 @@ class ProcessPlagiarismScan implements ShouldQueue
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function rejectThesisWhenScoreExceedsThreshold(mixed $score): void
+    {
+        if (! is_numeric($score)) {
+            return;
+        }
+
+        $numericScore = (float) $score;
+
+        if ($numericScore <= 1) {
+            $numericScore *= 100;
+        }
+
+        if ($numericScore < self::REJECTION_THRESHOLD_PERCENT) {
+            return;
+        }
+
+        $thesis = $this->scan->thesis;
+
+        if (! $thesis) {
+            return;
+        }
+
+        $attributes = ['status' => ThesisStatus::REJECTED];
+
+        if (! $thesis->rejection_remark) {
+            $attributes['rejection_remark'] = sprintf(
+                'Automatically rejected due to plagiarism score of %d%%.',
+                (int) round($numericScore)
+            );
+        }
+
+        $thesis->update($attributes);
     }
 }

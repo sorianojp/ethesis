@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ThesisStatus;
 use App\Models\PlagiarismScan;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\RequestException;
@@ -12,6 +13,8 @@ use Throwable;
 
 class WinstonPlagiarismService
 {
+    private const REJECTION_THRESHOLD_PERCENT = 10;
+
     public function __construct(
         private readonly string $token,
         private readonly string $endpoint,
@@ -78,9 +81,11 @@ class WinstonPlagiarismService
         $result = Arr::get($data, 'result', []);
         $scanTime = Arr::get($data, 'scanInformation.scanTime');
 
+        $score = Arr::get($result, 'score');
+
         $scan->update([
             'status' => 'completed',
-            'score' => Arr::get($result, 'score'),
+            'score' => $score,
             'source_count' => Arr::get($result, 'sourceCounts'),
             'text_word_count' => Arr::get($result, 'textWordCounts'),
             'total_plagiarism_words' => Arr::get($result, 'totalPlagiarismWords'),
@@ -92,7 +97,42 @@ class WinstonPlagiarismService
             'error_message' => null,
         ]);
 
+        $this->rejectThesisWhenScoreExceedsThreshold($scan, $score);
+
         return $scan;
     }
-}
 
+    private function rejectThesisWhenScoreExceedsThreshold(PlagiarismScan $scan, mixed $score): void
+    {
+        if (! is_numeric($score)) {
+            return;
+        }
+
+        $numericScore = (float) $score;
+
+        if ($numericScore <= 1) {
+            $numericScore *= 100;
+        }
+
+        if ($numericScore < self::REJECTION_THRESHOLD_PERCENT) {
+            return;
+        }
+
+        $thesis = $scan->thesis;
+
+        if (! $thesis) {
+            return;
+        }
+
+        $attributes = ['status' => ThesisStatus::REJECTED];
+
+        if (! $thesis->rejection_remark) {
+            $attributes['rejection_remark'] = sprintf(
+                'Automatically rejected due to plagiarism score of %d%%.',
+                (int) round($numericScore)
+            );
+        }
+
+        $thesis->update($attributes);
+    }
+}
