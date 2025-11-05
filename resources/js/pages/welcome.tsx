@@ -75,7 +75,7 @@ export default function Welcome() {
         <>
             <Head title="eThesis" />
             <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b bg-white/90 backdrop-blur">
+                <header className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                     <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5 lg:px-10">
                         <div className="flex items-center gap-3">
                             <img
@@ -94,7 +94,7 @@ export default function Welcome() {
                 </header>
 
                 <main className="space-y-16 bg-muted/40 pb-16">
-                    <section className="border-y bg-white py-16">
+                    <section className="border-y bg-card py-16">
                         <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 lg:flex-row lg:items-center lg:px-10">
                             <div className="flex-1">
                                 <Badge className="bg-primary/10 text-primary">
@@ -112,7 +112,7 @@ export default function Welcome() {
                                 </p>
                             </div>
 
-                            <Card className="flex-1 border border-border bg-white shadow-lg">
+                            <Card className="flex-1 shadow-lg">
                                 <CardHeader className="space-y-1">
                                     <CardTitle className="text-xl font-semibold">
                                         What students see
@@ -136,14 +136,14 @@ export default function Welcome() {
                                         <Separator className="my-3" />
                                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                                             <span>Upcoming defenses</span>
-                                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-600">
+                                            <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
                                                 3 scheduled
                                             </span>
                                         </div>
                                         <Separator className="my-3" />
                                         <div className="flex items-center justify-between text-sm text-muted-foreground">
                                             <span>Approval forms ready</span>
-                                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-600">
+                                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
                                                 5 available
                                             </span>
                                         </div>
@@ -164,7 +164,7 @@ export default function Welcome() {
                             {benefits.map((item) => (
                                 <Card
                                     key={item.title}
-                                    className="border border-border bg-white shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                                    className="shadow-sm transition hover:border-primary/40 hover:shadow-md"
                                 >
                                     <CardHeader>
                                         <CardTitle className="text-base font-semibold text-foreground">
@@ -197,7 +197,7 @@ export default function Welcome() {
                             {featureCards.map((feature) => (
                                 <Card
                                     key={feature.title}
-                                    className="border border-border bg-white shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                                    className="shadow-sm transition hover:border-primary/40 hover:shadow-md"
                                 >
                                     <CardHeader>
                                         <CardTitle className="text-base font-semibold text-foreground">
@@ -226,7 +226,7 @@ export default function Welcome() {
                     </section>
                 </main>
 
-                <footer className="border-t border-border/60 bg-white py-6">
+                <footer className="border-t border-border/60 bg-background/90 py-6">
                     <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 text-xs text-muted-foreground lg:flex-row lg:items-center lg:justify-between lg:px-10">
                         <p>
                             © {new Date().getFullYear()} eThesis. All rights

@@ -23,10 +23,7 @@ interface LoginProps {
 
 export default function Login({ status }: LoginProps) {
     return (
-        <AuthLayout
-            title="eThesis"
-            description="Organize, write, succeed. Simplified."
-        >
+        <AuthLayout title="eThesis" description="A thesis submission system.">
             <Head title="Log in" />
 
             <Form
@@ -99,7 +96,7 @@ export default function Login({ status }: LoginProps) {
                             </CardContent>
                         </Card>
                         <div className="text-center text-xs text-muted-foreground">
-                            Need access? Contact your ArzaTech.
+                            Need access? Contact ArzaTech.
                         </div>
                     </>
                 )}
