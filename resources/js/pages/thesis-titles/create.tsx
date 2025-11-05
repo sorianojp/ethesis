@@ -86,14 +86,17 @@ export default function ThesisTitleCreate({
         [students],
     );
 
-    const [teacherOptions, setTeacherOptions] = useState<Option[]>(
-        initialTeacherOptions,
-    );
-    const [teacherQuery, setTeacherQuery] = useState('');
-    const [teacherLoading, setTeacherLoading] = useState(false);
-    const [teacherError, setTeacherError] = useState<string | null>(null);
     const [selectedAdviser, setSelectedAdviser] = useState<Option | null>(
         initialTeacherOptions[0] ?? null,
+    );
+
+    const teacherOptions = useMemo(
+        () =>
+            mergeOptions(
+                initialTeacherOptions,
+                selectedAdviser ? [selectedAdviser] : [],
+            ),
+        [initialTeacherOptions, selectedAdviser],
     );
 
     const [studentOptions, setStudentOptions] = useState<Option[]>(
@@ -105,14 +108,6 @@ export default function ThesisTitleCreate({
     const [selectedMembers, setSelectedMembers] = useState<Option[]>([]);
 
     useEffect(() => {
-        setTeacherOptions((current) =>
-            mergeOptions(
-                initialTeacherOptions,
-                selectedAdviser ? [selectedAdviser] : [],
-                current,
-            ),
-        );
-
         if (!selectedAdviser && initialTeacherOptions.length > 0) {
             setSelectedAdviser(initialTeacherOptions[0]);
         }
@@ -165,61 +160,6 @@ export default function ThesisTitleCreate({
         },
         [],
     );
-
-    useEffect(() => {
-        const trimmed = teacherQuery.trim();
-
-        if (trimmed === '') {
-            setTeacherLoading(false);
-            setTeacherError(null);
-            setTeacherOptions((current) =>
-                mergeOptions(
-                    initialTeacherOptions,
-                    selectedAdviser ? [selectedAdviser] : [],
-                    current,
-                ),
-            );
-            return;
-        }
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => {
-            setTeacherLoading(true);
-            setTeacherError(null);
-
-            fetchOptions('teachers', trimmed, controller.signal)
-                .then((options) => {
-                    if (controller.signal.aborted) {
-                        return;
-                    }
-
-                    setTeacherOptions(
-                        mergeOptions(
-                            options,
-                            selectedAdviser ? [selectedAdviser] : [],
-                        ),
-                    );
-                })
-                .catch((error: unknown) => {
-                    if (controller.signal.aborted) {
-                        return;
-                    }
-
-                    console.error(error);
-                    setTeacherError('Unable to load advisers right now.');
-                })
-                .finally(() => {
-                    if (!controller.signal.aborted) {
-                        setTeacherLoading(false);
-                    }
-                });
-        }, 300);
-
-        return () => {
-            controller.abort();
-            clearTimeout(timeout);
-        };
-    }, [teacherQuery, initialTeacherOptions, selectedAdviser, fetchOptions]);
 
     useEffect(() => {
         const trimmed = memberQuery.trim();
@@ -432,106 +372,60 @@ export default function ThesisTitleCreate({
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="adviser-search">
+                                        <Label htmlFor="adviser_id">
                                             Adviser
                                         </Label>
-                                        <div className="space-y-2">
-                                            <Input
-                                                id="adviser-search"
-                                                value={teacherQuery}
-                                                onChange={(event) =>
-                                                    setTeacherQuery(
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                placeholder="Search advisers by name"
-                                                aria-label="Search advisers"
-                                            />
-                                            <Select
-                                                value={selectedAdviser?.id ?? ''}
-                                                onValueChange={(value) => {
-                                                    const adviser =
-                                                        teacherOptions.find(
-                                                            (option) =>
-                                                                option.id ===
-                                                                value,
-                                                        ) ?? null;
+                                        <Select
+                                            value={selectedAdviser?.id ?? ''}
+                                            onValueChange={(value) => {
+                                                const adviser =
+                                                    teacherOptions.find(
+                                                        (option) =>
+                                                            option.id ===
+                                                            value,
+                                                    ) ?? null;
 
-                                                    setSelectedAdviser(
-                                                        adviser,
-                                                    );
-                                                }}
-                                                disabled={
-                                                    teacherOptions.length ===
-                                                        0 && !teacherLoading
-                                                }
-                                            >
-                                                <SelectTrigger
-                                                    id="adviser_id"
-                                                    aria-invalid={Boolean(
-                                                        errors.adviser_id,
-                                                    )}
-                                                >
-                                                    <SelectValue
-                                                        placeholder={
-                                                            teacherLoading
-                                                                ? 'Searching…'
-                                                                : 'Choose adviser'
-                                                        }
-                                                    />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {teacherOptions.map(
-                                                        (teacher) => (
-                                                            <SelectItem
-                                                                value={
-                                                                    teacher.id
-                                                                }
-                                                                key={
-                                                                    teacher.id
-                                                                }
-                                                            >
-                                                                {teacher.name}
-                                                            </SelectItem>
-                                                        ),
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
-                                            {teacherLoading && (
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    <Spinner className="h-3 w-3" />
-                                                    <span>
-                                                        Loading advisers…
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {teacherError && (
-                                                <p className="text-xs text-destructive">
-                                                    {teacherError}
-                                                </p>
-                                            )}
-                                            {teacherOptions.length === 0 &&
-                                                !teacherLoading && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {teacherQuery.trim() ===
-                                                            '' &&
-                                                        initialTeacherOptions.length ===
-                                                            0
-                                                            ? 'No teachers available. Contact an administrator.'
-                                                            : 'No advisers match your search.'}
-                                                    </p>
+                                                setSelectedAdviser(adviser);
+                                            }}
+                                            disabled={
+                                                teacherOptions.length === 0
+                                            }
+                                        >
+                                            <SelectTrigger
+                                                id="adviser_id"
+                                                aria-invalid={Boolean(
+                                                    errors.adviser_id,
                                                 )}
-                                            <input
-                                                type="hidden"
-                                                name="adviser_id"
-                                                value={
-                                                    selectedAdviser?.id ?? ''
-                                                }
-                                            />
-                                            <InputError
-                                                message={errors.adviser_id}
-                                            />
-                                        </div>
+                                            >
+                                                <SelectValue placeholder="Choose adviser" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {teacherOptions.map(
+                                                    (teacher) => (
+                                                        <SelectItem
+                                                            value={teacher.id}
+                                                            key={teacher.id}
+                                                        >
+                                                            {teacher.name}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        {teacherOptions.length === 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                                No teachers available. Contact
+                                                an administrator.
+                                            </p>
+                                        )}
+                                        <input
+                                            type="hidden"
+                                            name="adviser_id"
+                                            value={selectedAdviser?.id ?? ''}
+                                        />
+                                        <InputError
+                                            message={errors.adviser_id}
+                                        />
                                     </div>
 
                                     <div className="space-y-2">

@@ -91,7 +91,7 @@ class ThesisTitleController extends Controller
 
         return Inertia::render('thesis-titles/create', [
             'teachers' => $this->teacherOptions($request),
-            'students' => $this->studentOptions($request),
+            'students' => $this->studentOptions($request, $request->user()->id),
         ]);
     }
 
@@ -142,32 +142,60 @@ class ThesisTitleController extends Controller
         ]);
     }
 
-    private function teacherOptions(Request $request): array
+    private function teacherOptions(Request $request, array $includeIds = []): array
     {
         return $this->buildOptions(
             User::teachers(),
-            (string) $request->string('teacher_search')->trim()
+            (string) $request->string('teacher_search')->trim(),
+            20,
+            $includeIds
         );
     }
 
-    private function studentOptions(Request $request): array
+    private function studentOptions(Request $request, int $excludeId, array $includeIds = []): array
     {
         return $this->buildOptions(
-            User::students()->whereKeyNot($request->user()->id),
-            (string) $request->string('student_search')->trim()
+            User::students()->whereKeyNot($excludeId),
+            (string) $request->string('student_search')->trim(),
+            20,
+            $includeIds
         );
     }
 
-    private function buildOptions(Builder $query, string $search, int $limit = 20): array
+    private function buildOptions(Builder $baseQuery, string $search, int $limit = 20, array $includeIds = []): array
     {
+        $query = clone $baseQuery;
+
         if ($search !== '') {
             $query->where('name', 'like', '%' . addcslashes($search, '%_') . '%');
         }
 
-        return $query
+        $results = $query
             ->orderBy('name')
             ->limit($limit)
             ->get(['id', 'name'])
+            ->values();
+
+        if ($includeIds !== []) {
+            $missingIds = collect($includeIds)
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->diff($results->pluck('id'));
+
+            if ($missingIds->isNotEmpty()) {
+                $additional = (clone $baseQuery)
+                    ->whereKey($missingIds->all())
+                    ->orderBy('name')
+                    ->get(['id', 'name']);
+
+                $results = $results->concat($additional);
+            }
+        }
+
+        return $results
+            ->unique('id')
+            ->sortBy('name')
+            ->values()
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -389,13 +417,25 @@ class ThesisTitleController extends Controller
         $this->ensureOwnership($request, $thesisTitle);
         $this->ensureStudent($request);
 
-        $teachers = User::teachers()
-            ->orderBy('name')
-            ->get(['id', 'name']);
-        $students = User::students()
-            ->whereKeyNot($thesisTitle->user_id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $thesisTitle->load(['members' => fn ($query) => $query->select('users.id', 'users.name')]);
+
+        $members = $thesisTitle->members
+            ->map(fn (User $member) => [
+                'id' => $member->id,
+                'name' => $member->name,
+            ])
+            ->values();
+
+        $teachers = $this->teacherOptions(
+            $request,
+            $thesisTitle->adviser_id ? [$thesisTitle->adviser_id] : []
+        );
+
+        $students = $this->studentOptions(
+            $request,
+            $thesisTitle->user_id,
+            $members->pluck('id')->all()
+        );
 
         return Inertia::render('thesis-titles/edit', [
             'thesisTitle' => [
@@ -407,7 +447,8 @@ class ThesisTitleController extends Controller
                 ] : null,
                 'abstract_pdf_url' => $this->fileUrl($thesisTitle->abstract_pdf),
                 'endorsement_pdf_url' => $this->fileUrl($thesisTitle->endorsement_pdf),
-                'member_ids' => $thesisTitle->members()->pluck('user_id')->all(),
+                'member_ids' => $members->pluck('id')->all(),
+                'members' => $members->all(),
             ],
             'teachers' => $teachers,
             'students' => $students,

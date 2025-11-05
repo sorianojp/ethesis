@@ -16,7 +16,8 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { Form, Head, Link } from '@inertiajs/react';
 import { X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Spinner } from '@/components/ui/spinner';
 
 interface ThesisTitleEditProps {
     thesisTitle: {
@@ -26,6 +27,10 @@ interface ThesisTitleEditProps {
         abstract_pdf_url: string | null;
         endorsement_pdf_url: string | null;
         member_ids: number[];
+        members: {
+            id: number;
+            name: string;
+        }[];
     };
     teachers: {
         id: number;
@@ -35,6 +40,29 @@ interface ThesisTitleEditProps {
         id: number;
         name: string;
     }[];
+}
+
+type Option = {
+    id: string;
+    name: string;
+};
+
+function mergeOptions(...lists: Option[][]): Option[] {
+    const seen = new Set<string>();
+    const result: Option[] = [];
+
+    lists.forEach((list) => {
+        list.forEach((option) => {
+            if (seen.has(option.id)) {
+                return;
+            }
+
+            result.push(option);
+            seen.add(option.id);
+        });
+    });
+
+    return result;
 }
 
 export default function ThesisTitleEdit({
@@ -61,7 +89,7 @@ export default function ThesisTitleEdit({
         },
     ];
 
-    const teacherOptions = useMemo(
+    const initialTeacherOptions = useMemo<Option[]>(
         () =>
             teachers.map((teacher) => ({
                 id: teacher.id.toString(),
@@ -70,35 +98,7 @@ export default function ThesisTitleEdit({
         [teachers],
     );
 
-    const [adviserId, setAdviserId] = useState<string>(
-        thesisTitle.adviser?.id.toString() ?? teacherOptions[0]?.id ?? '',
-    );
-    const [memberIds, setMemberIds] = useState<string[]>(
-        thesisTitle.member_ids.map((memberId) => memberId.toString()),
-    );
-    const [memberQuery, setMemberQuery] = useState('');
-
-    useEffect(() => {
-        if (teacherOptions.length === 0) {
-            setAdviserId('');
-            return;
-        }
-
-        setAdviserId((current) => {
-            if (current !== '') {
-                return current;
-            }
-
-            return (
-                thesisTitle.adviser?.id.toString() ??
-                teacherOptions[0]?.id ??
-                ''
-            );
-        });
-    }, [teacherOptions, thesisTitle.adviser?.id]);
-
-    const adviserSelected = adviserId !== '';
-    const studentOptions = useMemo(
+    const initialStudentOptions = useMemo<Option[]>(
         () =>
             students.map((student) => ({
                 id: student.id.toString(),
@@ -107,40 +107,181 @@ export default function ThesisTitleEdit({
         [students],
     );
 
-    const selectedMembers = useMemo(
-        () => studentOptions.filter((option) => memberIds.includes(option.id)),
-        [studentOptions, memberIds],
+    const initialSelectedMembers = useMemo<Option[]>(
+        () =>
+            thesisTitle.members.map((member) => ({
+                id: member.id.toString(),
+                name: member.name,
+            })),
+        [thesisTitle.members],
     );
 
-    const filteredMembers = useMemo(() => {
-        const query = memberQuery.trim().toLowerCase();
+    const [selectedAdviser, setSelectedAdviser] = useState<Option | null>(() => {
+        if (thesisTitle.adviser) {
+            return {
+                id: thesisTitle.adviser.id.toString(),
+                name: thesisTitle.adviser.name,
+            };
+        }
 
-        return studentOptions.filter((student) => {
-            if (memberIds.includes(student.id)) {
-                return false;
+        return initialTeacherOptions[0] ?? null;
+    });
+
+    const teacherOptions = useMemo(
+        () =>
+            mergeOptions(
+                initialTeacherOptions,
+                selectedAdviser ? [selectedAdviser] : [],
+            ),
+        [initialTeacherOptions, selectedAdviser],
+    );
+
+    const [studentOptions, setStudentOptions] = useState<Option[]>(() =>
+        mergeOptions(initialStudentOptions, initialSelectedMembers),
+    );
+    const [studentLoading, setStudentLoading] = useState(false);
+    const [studentError, setStudentError] = useState<string | null>(null);
+    const [memberQuery, setMemberQuery] = useState('');
+    const [selectedMembers, setSelectedMembers] = useState<Option[]>(
+        initialSelectedMembers,
+    );
+
+    useEffect(() => {
+        setStudentOptions((current) =>
+            mergeOptions(initialStudentOptions, selectedMembers, current),
+        );
+    }, [initialStudentOptions, selectedMembers]);
+
+    useEffect(() => {
+        if (selectedAdviser) {
+            return;
+        }
+
+        if (thesisTitle.adviser) {
+            setSelectedAdviser({
+                id: thesisTitle.adviser.id.toString(),
+                name: thesisTitle.adviser.name,
+            });
+            return;
+        }
+
+        if (initialTeacherOptions.length > 0) {
+            setSelectedAdviser(initialTeacherOptions[0]);
+        }
+    }, [thesisTitle.adviser, initialTeacherOptions, selectedAdviser]);
+
+    const fetchOptions = useCallback(
+        async (
+            type: 'teachers' | 'students',
+            query: string,
+            signal: AbortSignal,
+        ): Promise<Option[]> => {
+            const params = new URLSearchParams({
+                type,
+                limit: '20',
+            });
+
+            const trimmed = query.trim();
+
+            if (trimmed !== '') {
+                params.set('search', trimmed);
             }
 
-            if (query === '') {
-                return true;
+            const response = await fetch(
+                `/thesis-titles/options?${params.toString()}`,
+                {
+                    method: 'GET',
+                    signal,
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to load ${type}`);
             }
 
-            return student.name.toLowerCase().includes(query);
-        });
-    }, [studentOptions, memberIds, memberQuery]);
+            const payload = (await response.json()) as {
+                data: { id: number; name: string }[];
+            };
 
-    const addMember = (id: string) => {
-        setMemberIds((prev) => {
-            if (prev.includes(id)) {
+            return payload.data.map((item) => ({
+                id: item.id.toString(),
+                name: item.name,
+            }));
+        },
+        [],
+    );
+
+    useEffect(() => {
+        const trimmed = memberQuery.trim();
+
+        if (trimmed === '') {
+            setStudentLoading(false);
+            setStudentError(null);
+            setStudentOptions(initialStudentOptions);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            setStudentLoading(true);
+            setStudentError(null);
+
+            fetchOptions('students', trimmed, controller.signal)
+                .then((options) => {
+                    if (controller.signal.aborted) {
+                        return;
+                    }
+
+                    setStudentOptions(options);
+                })
+                .catch((error: unknown) => {
+                    if (controller.signal.aborted) {
+                        return;
+                    }
+
+                    console.error(error);
+                    setStudentError('Unable to load students right now.');
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) {
+                        setStudentLoading(false);
+                    }
+                });
+        }, 300);
+
+        return () => {
+            controller.abort();
+            clearTimeout(timeout);
+        };
+    }, [memberQuery, initialStudentOptions, fetchOptions]);
+
+    const adviserSelected = selectedAdviser !== null;
+
+    const filteredMembers = useMemo(
+        () =>
+            studentOptions.filter(
+                (option) =>
+                    !selectedMembers.some((member) => member.id === option.id),
+            ),
+        [studentOptions, selectedMembers],
+    );
+
+    const addMember = (member: Option) => {
+        setSelectedMembers((prev) => {
+            if (prev.some((item) => item.id === member.id)) {
                 return prev;
             }
 
-            return [...prev, id];
+            return [...prev, member];
         });
         setMemberQuery('');
     };
 
     const removeMember = (id: string) => {
-        setMemberIds((prev) => prev.filter((value) => value !== id));
+        setSelectedMembers((prev) => prev.filter((value) => value.id !== id));
     };
 
     return (
@@ -175,7 +316,8 @@ export default function ThesisTitleEdit({
 
                                     <div className="space-y-3">
                                         <Label>Members</Label>
-                                        {studentOptions.length === 0 ? (
+                                        {initialStudentOptions.length === 0 &&
+                                        selectedMembers.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">
                                                 No students are available to add
                                                 as members.
@@ -194,7 +336,18 @@ export default function ThesisTitleEdit({
                                                 />
                                                 {memberQuery.trim() !== '' && (
                                                     <div className="absolute z-10 mt-2 max-h-48 w-full space-y-1 overflow-y-auto rounded-md border border-border bg-white shadow-lg">
-                                                        {filteredMembers.length ===
+                                                        {studentLoading ? (
+                                                            <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                                                                <Spinner className="h-4 w-4" />
+                                                                <span>
+                                                                    Searching…
+                                                                </span>
+                                                            </div>
+                                                        ) : studentError ? (
+                                                            <p className="px-3 py-2 text-sm text-destructive">
+                                                                {studentError}
+                                                            </p>
+                                                        ) : filteredMembers.length ===
                                                         0 ? (
                                                             <p className="px-3 py-2 text-sm text-muted-foreground">
                                                                 No students
@@ -213,7 +366,7 @@ export default function ThesisTitleEdit({
                                                                         className="h-auto w-full justify-start px-3 py-2 text-left text-sm"
                                                                         onClick={() =>
                                                                             addMember(
-                                                                                student.id,
+                                                                                student,
                                                                             )
                                                                         }
                                                                     >
@@ -228,6 +381,7 @@ export default function ThesisTitleEdit({
                                                 )}
                                             </div>
                                         )}
+
                                         {selectedMembers.length > 0 && (
                                             <div className="flex flex-wrap gap-2">
                                                 {selectedMembers.map(
@@ -257,12 +411,13 @@ export default function ThesisTitleEdit({
                                                 )}
                                             </div>
                                         )}
-                                        {memberIds.map((id, index) => (
+
+                                        {selectedMembers.map((member, index) => (
                                             <input
-                                                key={id}
+                                                key={member.id}
                                                 type="hidden"
                                                 name={`member_ids[${index}]`}
-                                                value={id}
+                                                value={member.id}
                                             />
                                         ))}
                                         <InputError
@@ -275,8 +430,17 @@ export default function ThesisTitleEdit({
                                             Adviser
                                         </Label>
                                         <Select
-                                            value={adviserId}
-                                            onValueChange={setAdviserId}
+                                            value={selectedAdviser?.id ?? ''}
+                                            onValueChange={(value) => {
+                                                const adviser =
+                                                    teacherOptions.find(
+                                                        (option) =>
+                                                            option.id ===
+                                                            value,
+                                                    ) ?? null;
+
+                                                setSelectedAdviser(adviser);
+                                            }}
                                             disabled={
                                                 teacherOptions.length === 0
                                             }
@@ -302,17 +466,17 @@ export default function ThesisTitleEdit({
                                                 )}
                                             </SelectContent>
                                         </Select>
-                                        <input
-                                            type="hidden"
-                                            name="adviser_id"
-                                            value={adviserId}
-                                        />
                                         {teacherOptions.length === 0 && (
-                                            <p className="text-xs text-destructive">
+                                            <p className="text-xs text-muted-foreground">
                                                 No teachers available. Contact
                                                 an administrator.
                                             </p>
                                         )}
+                                        <input
+                                            type="hidden"
+                                            name="adviser_id"
+                                            value={selectedAdviser?.id ?? ''}
+                                        />
                                         <InputError
                                             message={errors.adviser_id}
                                         />
@@ -402,13 +566,14 @@ export default function ThesisTitleEdit({
                                                 Cancel
                                             </Link>
                                         </Button>
+
                                         <Button
                                             type="submit"
                                             disabled={
                                                 processing || !adviserSelected
                                             }
                                         >
-                                            Update
+                                            Save
                                         </Button>
                                     </div>
                                 </>
