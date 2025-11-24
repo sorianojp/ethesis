@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookMarked, BookOpen, GraduationCap, LayoutGrid } from 'lucide-react';
+import { BookMarked, BookOpen, Building2, GraduationCap, LayoutGrid } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const dashboardNavItem: NavItem = {
@@ -36,12 +36,38 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const extractRoleNames = (rawRoles: unknown): string[] => {
+    if (!Array.isArray(rawRoles)) {
+        return [];
+    }
+
+    return rawRoles
+        .map((role) => {
+            if (typeof role === 'string') {
+                return role;
+            }
+
+            if (role && typeof role === 'object') {
+                if ('name' in role && typeof (role as { name?: unknown }).name === 'string') {
+                    return (role as { name: string }).name;
+                }
+
+                if ('title' in role && typeof (role as { title?: unknown }).title === 'string') {
+                    return (role as { title: string }).title;
+                }
+            }
+
+            return null;
+        })
+        .filter((roleName): roleName is string => Boolean(roleName));
+};
+
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
-    const rawRoles = auth.user?.roles;
-    const roles = Array.isArray(rawRoles) ? rawRoles : [];
-    const isTeacher = roles.includes('Teacher');
-    const isStudent = roles.includes('Student') || !isTeacher;
+    const roleNames = extractRoleNames(auth.user?.roles);
+    const isTeacher = roleNames.includes('Teacher');
+    const isStudent = roleNames.includes('Student') || !isTeacher;
+    const isDean = roleNames.includes('Dean');
 
     const mainNavItems: NavItem[] = [dashboardNavItem];
 
@@ -58,6 +84,14 @@ export function AppSidebar() {
             title: 'Advisees',
             href: ThesisTitleController.advisees(),
             icon: GraduationCap,
+        });
+    }
+
+    if (isDean) {
+        mainNavItems.push({
+            title: 'Thesis Deans',
+            href: ThesisTitleController.dean(),
+            icon: Building2,
         });
     }
 

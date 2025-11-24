@@ -16,6 +16,7 @@ class ThesisTitle extends Model
     protected $fillable = [
         'user_id',
         'adviser_id',
+        'college_name',
         'title',
         'abstract_pdf',
         'endorsement_pdf',

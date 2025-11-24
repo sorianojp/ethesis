@@ -213,6 +213,7 @@ class ThesisTitleController extends Controller
 
         $adviser = $this->resolveAdviser((int) $data['adviser_id']);
         $memberIds = $this->sanitizeMemberIds($data['member_ids'] ?? [], $request->user()->id)->all();
+        $collegeName = $this->resolveStudentCollegeName($request);
 
         $abstractPath = $this->uploadPdf(
             $request->file('abstract_pdf'),
@@ -229,6 +230,7 @@ class ThesisTitleController extends Controller
         $thesisTitle = ThesisTitle::create([
             'user_id' => $request->user()->id,
             'adviser_id' => $adviser->id,
+            'college_name' => $collegeName,
             'title' => $data['title'],
             'abstract_pdf' => $abstractPath,
             'endorsement_pdf' => $endorsementPath,
@@ -542,6 +544,42 @@ class ThesisTitleController extends Controller
         ]);
     }
 
+    public function dean(Request $request): Response
+    {
+        $this->ensureDean($request);
+
+        $collegeName = $this->resolveStaffCollegeName($request);
+
+        $thesisTitles = ThesisTitle::query()
+            ->with(['user', 'adviser'])
+            ->withCount('theses')
+            ->when($collegeName !== null, fn ($query) => $query->where('college_name', $collegeName))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn (ThesisTitle $title) => [
+                'id' => $title->id,
+                'title' => $title->title,
+                'college_name' => $title->college_name,
+                'leader' => $title->user ? [
+                    'id' => $title->user->id,
+                    'name' => $title->user->name,
+                ] : null,
+                'adviser' => $title->adviser ? [
+                    'id' => $title->adviser->id,
+                    'name' => $title->adviser->name,
+                ] : null,
+                'theses_count' => $title->theses_count,
+                'created_at' => optional($title->created_at)->toIso8601String(),
+                'view_url' => route('thesis-titles.show', $title),
+            ]);
+
+        return Inertia::render('thesis-titles/dean', [
+            'collegeName' => $collegeName,
+            'thesisTitles' => $thesisTitles,
+        ]);
+    }
+
     private function uploadPdf(UploadedFile $file, int $userId, string $folder): string
     {
         $disk = Storage::disk('spaces');
@@ -611,6 +649,13 @@ class ThesisTitleController extends Controller
             return;
         }
 
+        if (
+            $this->userHasRole($user, 'Dean')
+            && $this->deanCanViewCollege($request, $thesisTitle)
+        ) {
+            return;
+        }
+
         abort(403);
     }
 
@@ -619,6 +664,11 @@ class ThesisTitleController extends Controller
         $user = $request->user();
 
         abort_unless($this->userIsTeacher($user), 403);
+    }
+
+    private function ensureDean(Request $request): void
+    {
+        abort_unless($this->userHasRole($request->user(), 'Dean'), 403);
     }
 
     private function ensureAdviser(Request $request, ThesisTitle $thesisTitle): void
@@ -869,9 +919,7 @@ class ThesisTitleController extends Controller
 
     private function resolveCollegeName(Request $request, ThesisTitle $thesisTitle): ?string
     {
-        return $this->normalizeString(
-            data_get($request->session()->get('step_auth'), 'user.student.college.name')
-        );
+        return $this->resolveStudentCollegeName($request);
     }
 
     private function formatDefenseDate(?CarbonInterface $date): string
@@ -900,6 +948,42 @@ class ThesisTitleController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveStudentCollegeName(Request $request): ?string
+    {
+        return $this->normalizeString(
+            data_get($request->session()->get('step_auth'), 'user.student.college.name')
+                ?? data_get($request->user()?->getAttributes(), 'student.college.name')
+        );
+    }
+
+    private function resolveStaffCollegeName(Request $request): ?string
+    {
+        return $this->normalizeString(
+            data_get($request->session()->get('step_auth'), 'user.staff.college.name')
+                ?? data_get($request->user()?->getAttributes(), 'staff.college.name')
+        );
+    }
+
+    private function deanCanViewCollege(Request $request, ThesisTitle $thesisTitle): bool
+    {
+        $collegeName = $this->resolveStaffCollegeName($request);
+
+        if (! $collegeName) {
+            return false;
+        }
+
+        return $this->collegeMatches($thesisTitle->college_name, $collegeName);
+    }
+
+    private function collegeMatches(?string $lhs, ?string $rhs): bool
+    {
+        if (! $lhs || ! $rhs) {
+            return false;
+        }
+
+        return strcasecmp(trim($lhs), trim($rhs)) === 0;
     }
 
     private function downloadCertificate(Request $request, ThesisTitle $thesisTitle, string $type)
