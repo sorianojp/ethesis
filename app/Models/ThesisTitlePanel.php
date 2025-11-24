@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ThesisTitlePanel extends Model
 {
@@ -36,5 +37,9 @@ class ThesisTitlePanel extends Model
     {
         return $this->belongsTo(User::class, 'member_two_id');
     }
-}
 
+    public function members(): HasMany
+    {
+        return $this->hasMany(ThesisTitlePanelMember::class, 'thesis_title_panel_id')->with('user');
+    }
+}

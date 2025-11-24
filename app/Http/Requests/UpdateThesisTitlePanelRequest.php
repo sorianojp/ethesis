@@ -26,20 +26,9 @@ class UpdateThesisTitlePanelRequest extends FormRequest
                 'nullable',
                 'integer',
                 'exists:users,id',
-                'different:member_one_id',
-                'different:member_two_id',
             ],
-            'member_one_id' => [
-                'nullable',
-                'integer',
-                'exists:users,id',
-                'different:member_two_id',
-            ],
-            'member_two_id' => [
-                'nullable',
-                'integer',
-                'exists:users,id',
-            ],
+            'member_ids' => ['array'],
+            'member_ids.*' => ['nullable', 'integer', 'exists:users,id', 'distinct'],
         ];
     }
 
@@ -47,13 +36,12 @@ class UpdateThesisTitlePanelRequest extends FormRequest
     {
         $this->merge([
             'chairman_id' => $this->normalize($this->input('chairman_id')),
-            'member_one_id' => $this->normalize($this->input('member_one_id')),
-            'member_two_id' => $this->normalize($this->input('member_two_id')),
+            'member_ids' => $this->normalizeArray($this->input('member_ids', [])),
         ]);
     }
 
     /**
-     * @return array<string, int|null>
+     * @return array<string, mixed>
      */
     public function panelMembers(): array
     {
@@ -61,8 +49,11 @@ class UpdateThesisTitlePanelRequest extends FormRequest
 
         return [
             'chairman_id' => isset($validated['chairman_id']) ? (int) $validated['chairman_id'] : null,
-            'member_one_id' => isset($validated['member_one_id']) ? (int) $validated['member_one_id'] : null,
-            'member_two_id' => isset($validated['member_two_id']) ? (int) $validated['member_two_id'] : null,
+            'member_ids' => collect($validated['member_ids'] ?? [])
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all(),
         ];
     }
 
@@ -73,5 +64,27 @@ class UpdateThesisTitlePanelRequest extends FormRequest
         }
 
         return $value;
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return list<int|null|string>
+     */
+    private function normalizeArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return collect($value)
+                ->values()
+                ->map(function ($item) {
+                    if ($item === '' || $item === 'null') {
+                        return null;
+                    }
+
+                    return $item;
+                })
+                ->all();
+        }
+
+        return [];
     }
 }
