@@ -46,7 +46,8 @@ interface PanelMember {
 
 interface PanelAssignments {
     chairman: PanelMember | null;
-    members: PanelMember[];
+    member_one: PanelMember | null;
+    member_two: PanelMember | null;
 }
 
 interface PanelOption {
@@ -101,10 +102,30 @@ interface PlagiarismScan {
     updated_at: string | null;
 }
 
-type PanelState = {
-    chairman_id: string;
-    member_ids: string[];
-};
+type PanelStateKey = 'chairman_id' | 'member_one_id' | 'member_two_id';
+type PanelState = Record<PanelStateKey, string>;
+
+const PANEL_FIELDS: Array<{
+    field: PanelStateKey;
+    label: string;
+    placeholder: string;
+}> = [
+    {
+        field: 'chairman_id',
+        label: 'Chairman',
+        placeholder: 'Select chairman',
+    },
+    {
+        field: 'member_one_id',
+        label: 'Member 1',
+        placeholder: 'Select member',
+    },
+    {
+        field: 'member_two_id',
+        label: 'Member 2',
+        placeholder: 'Select member',
+    },
+];
 
 interface ThesisItem {
     id: number;
@@ -753,7 +774,6 @@ export default function ThesisTitleShow({
     const canManage = permissions.manage;
     const canReview = permissions.review;
     const UNASSIGNED_VALUE = 'unassigned';
-    const MIN_PANEL_MEMBERS = 2;
 
     const panelOptionsList = useMemo(
         () =>
@@ -790,22 +810,24 @@ export default function ThesisTitleShow({
         setFinalDefenseInput(finalDefenseInputFromProps);
     }, [finalDefenseInputFromProps]);
 
-    const panelStateFromProps = useMemo<PanelState>(() => {
-        const memberIds =
-            thesisTitle.panel.members?.map((member) => member.id.toString()) ??
-            [];
-
-        while (memberIds.length < MIN_PANEL_MEMBERS) {
-            memberIds.push('');
-        }
-
-        return {
+    const panelStateFromProps = useMemo<PanelState>(
+        () => ({
             chairman_id: thesisTitle.panel.chairman
                 ? thesisTitle.panel.chairman.id.toString()
                 : '',
-            member_ids: memberIds,
-        };
-    }, [thesisTitle.panel.chairman?.id, thesisTitle.panel.members]);
+            member_one_id: thesisTitle.panel.member_one
+                ? thesisTitle.panel.member_one.id.toString()
+                : '',
+            member_two_id: thesisTitle.panel.member_two
+                ? thesisTitle.panel.member_two.id.toString()
+                : '',
+        }),
+        [
+            thesisTitle.panel.chairman?.id,
+            thesisTitle.panel.member_one?.id,
+            thesisTitle.panel.member_two?.id,
+        ],
+    );
 
     const [panelState, setPanelState] =
         useState<PanelState>(panelStateFromProps);
@@ -814,20 +836,27 @@ export default function ThesisTitleShow({
         setPanelState(panelStateFromProps);
     }, [panelStateFromProps]);
 
-    const panelSummary = useMemo(() => {
-        const members = thesisTitle.panel.members ?? [];
-
-        return [
+    const panelSummary = useMemo(
+        () => [
             {
                 label: 'Chairman',
                 value: thesisTitle.panel.chairman?.name ?? '—',
             },
-            ...members.map((member, index) => ({
-                label: `Member ${index + 1}`,
-                value: member.name ?? '—',
-            })),
-        ];
-    }, [thesisTitle.panel.chairman?.name, thesisTitle.panel.members]);
+            {
+                label: 'Member 1',
+                value: thesisTitle.panel.member_one?.name ?? '—',
+            },
+            {
+                label: 'Member 2',
+                value: thesisTitle.panel.member_two?.name ?? '—',
+            },
+        ],
+        [
+            thesisTitle.panel.chairman?.name,
+            thesisTitle.panel.member_one?.name,
+            thesisTitle.panel.member_two?.name,
+        ],
+    );
 
     const scheduleSummary = useMemo(
         () => [
@@ -843,59 +872,15 @@ export default function ThesisTitleShow({
         [thesisTitle.proposal_defense_at, thesisTitle.final_defense_at],
     );
 
-    const updateChairmanValue = (value: string) => {
+    const updatePanelStateValue = (field: PanelStateKey) => (value: string) => {
         setPanelState((prev) => ({
             ...prev,
-            chairman_id: value === UNASSIGNED_VALUE ? '' : value,
+            [field]: value === UNASSIGNED_VALUE ? '' : value,
         }));
     };
 
-    const updateMemberValue = (index: number) => (value: string) => {
-        setPanelState((prev) => {
-            const nextMembers = [...prev.member_ids];
-            while (nextMembers.length < MIN_PANEL_MEMBERS) {
-                nextMembers.push('');
-            }
-            nextMembers[index] = value === UNASSIGNED_VALUE ? '' : value;
-
-            return {
-                ...prev,
-                member_ids: nextMembers,
-            };
-        });
-    };
-
-    const addMemberField = () => {
-        setPanelState((prev) => ({
-            ...prev,
-            member_ids: [...prev.member_ids, ''],
-        }));
-    };
-
-    const removeMemberField = (index: number) => {
-        setPanelState((prev) => {
-            const nextMembers = [...prev.member_ids];
-            nextMembers.splice(index, 1);
-            while (nextMembers.length < MIN_PANEL_MEMBERS) {
-                nextMembers.push('');
-            }
-
-            return {
-                ...prev,
-                member_ids: nextMembers,
-            };
-        });
-    };
-
-    const selectValueForChairman =
-        panelState.chairman_id === ''
-            ? UNASSIGNED_VALUE
-            : panelState.chairman_id;
-
-    const selectValueForMember = (index: number) => {
-        const memberValue = panelState.member_ids[index] ?? '';
-        return memberValue === '' ? UNASSIGNED_VALUE : memberValue;
-    };
+    const selectValueFor = (field: PanelStateKey) =>
+        panelState[field] === '' ? UNASSIGNED_VALUE : panelState[field];
 
     const panelOptionsEmpty = panelOptionsList.length === 0;
 
@@ -1651,115 +1636,90 @@ export default function ThesisTitleShow({
                                         }) => (
                                             <>
                                                 <div className="grid grid-cols-1 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="panel-chairman">
-                                                            Chairman
-                                                        </Label>
-                                                        <Select
-                                                            value={selectValueForChairman}
-                                                            onValueChange={updateChairmanValue}
-                                                        >
-                                                            <SelectTrigger
-                                                                id="panel-chairman"
-                                                                aria-invalid={Boolean(
-                                                                    errors.chairman_id,
-                                                                )}
+                                                    {PANEL_FIELDS.map(
+                                                        ({
+                                                            field,
+                                                            label,
+                                                            placeholder,
+                                                        }) => (
+                                                            <div
+                                                                key={field}
+                                                                className="space-y-2"
                                                             >
-                                                                <SelectValue placeholder="Select chairman" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value={UNASSIGNED_VALUE}>
-                                                                    Unassigned
-                                                                </SelectItem>
-                                                                {panelOptionsList.map((option) => (
-                                                                    <SelectItem
-                                                                        key={option.id}
-                                                                        value={option.id}
-                                                                    >
-                                                                        {option.name}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <input
-                                                            type="hidden"
-                                                            name="chairman_id"
-                                                            value={panelState.chairman_id}
-                                                        />
-                                                        <InputError message={errors.chairman_id} />
-                                                    </div>
-
-                                                    {panelState.member_ids.map((memberId, index) => (
-                                                        <div
-                                                            key={`member-${index}`}
-                                                            className="space-y-2 rounded-lg border border-border/60 p-3"
-                                                        >
-                                                            <div className="flex items-center justify-between gap-2">
                                                                 <Label
-                                                                    htmlFor={`panel-member-${index}`}
-                                                                    className="text-sm font-medium"
+                                                                    htmlFor={`panel-${field}`}
                                                                 >
-                                                                    {`Member ${index + 1}`}
+                                                                    {label}
                                                                 </Label>
-                                                                {panelState.member_ids.length >
-                                                                    MIN_PANEL_MEMBERS && (
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => removeMemberField(index)}
-                                                                    >
-                                                                        Remove
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                            <Select
-                                                                value={selectValueForMember(index)}
-                                                                onValueChange={updateMemberValue(index)}
-                                                            >
-                                                                <SelectTrigger
-                                                                    id={`panel-member-${index}`}
-                                                                    aria-invalid={Boolean(
-                                                                        errors[`member_ids.${index}`],
+                                                                <Select
+                                                                    value={selectValueFor(
+                                                                        field,
+                                                                    )}
+                                                                    onValueChange={updatePanelStateValue(
+                                                                        field,
                                                                     )}
                                                                 >
-                                                                    <SelectValue placeholder="Select member" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value={UNASSIGNED_VALUE}>
-                                                                        Unassigned
-                                                                    </SelectItem>
-                                                                    {panelOptionsList.map((option) => (
+                                                                    <SelectTrigger
+                                                                        id={`panel-${field}`}
+                                                                        aria-invalid={Boolean(
+                                                                            errors[
+                                                                                field
+                                                                            ],
+                                                                        )}
+                                                                    >
+                                                                        <SelectValue
+                                                                            placeholder={
+                                                                                placeholder
+                                                                            }
+                                                                        />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
                                                                         <SelectItem
-                                                                            key={option.id}
-                                                                            value={option.id}
+                                                                            value={
+                                                                                UNASSIGNED_VALUE
+                                                                            }
                                                                         >
-                                                                            {option.name}
+                                                                            Unassigned
                                                                         </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                            <input
-                                                                type="hidden"
-                                                                name={`member_ids[${index}]`}
-                                                                value={memberId}
-                                                            />
-                                                            <InputError
-                                                                message={errors[`member_ids.${index}`]}
-                                                            />
-                                                        </div>
-                                                    ))}
-
-                                                    <div className="flex justify-end">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={addMemberField}
-                                                        >
-                                                            Add member
-                                                        </Button>
-                                                    </div>
+                                                                        {panelOptionsList.map(
+                                                                            (
+                                                                                option,
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        option.id
+                                                                                    }
+                                                                                    value={
+                                                                                        option.id
+                                                                                    }
+                                                                                >
+                                                                                    {
+                                                                                        option.name
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            ),
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <input
+                                                                    type="hidden"
+                                                                    name={field}
+                                                                    value={
+                                                                        panelState[
+                                                                            field
+                                                                        ]
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={
+                                                                        errors[
+                                                                            field
+                                                                        ]
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        ),
+                                                    )}
                                                 </div>
 
                                                 {panelOptionsEmpty && (
@@ -1784,14 +1744,10 @@ export default function ThesisTitleShow({
                                                                 setPanelState({
                                                                     chairman_id:
                                                                         '',
-                                                                    member_ids:
-                                                                        Array.from(
-                                                                            {
-                                                                                length: MIN_PANEL_MEMBERS,
-                                                                            },
-                                                                            () =>
-                                                                                '',
-                                                                        ),
+                                                                    member_one_id:
+                                                                        '',
+                                                                    member_two_id:
+                                                                        '',
                                                                 })
                                                             }
                                                             disabled={

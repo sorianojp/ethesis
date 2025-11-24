@@ -252,35 +252,12 @@ class ThesisTitleController extends Controller
             'panel.chairman',
             'panel.memberOne',
             'panel.memberTwo',
-            'panel.members.user',
             'user',
         ]);
 
         $canManage = (int) $request->user()->id === (int) $thesisTitle->user_id;
         $canReview = $thesisTitle->adviser_id && (int) $request->user()->id === (int) $thesisTitle->adviser_id;
         $panel = $thesisTitle->panel;
-        $panelMembers = collect();
-
-        if ($panel && $panel->members) {
-            foreach ($panel->members as $member) {
-                if ($member->user) {
-                    $panelMembers->push($member->user);
-                }
-            }
-        }
-
-        if ($panel && $panel->memberOne) {
-            $panelMembers->push($panel->memberOne);
-        }
-
-        if ($panel && $panel->memberTwo) {
-            $panelMembers->push($panel->memberTwo);
-        }
-
-        $panelMembers = $panelMembers
-            ->filter(fn ($user) => $user !== null)
-            ->unique('id')
-            ->values();
         $isMember = $thesisTitle->members->contains(
             fn (User $member) => (int) $member->id === (int) $request->user()->id
         );
@@ -365,12 +342,14 @@ class ThesisTitleController extends Controller
                         'id' => $panel->chairman->id,
                         'name' => $panel->chairman->name,
                     ] : null,
-                    'members' => $panelMembers
-                        ->map(fn (User $member) => [
-                            'id' => $member->id,
-                            'name' => $member->name,
-                        ])
-                        ->values(),
+                    'member_one' => $panel && $panel->memberOne ? [
+                        'id' => $panel->memberOne->id,
+                        'name' => $panel->memberOne->name,
+                    ] : null,
+                    'member_two' => $panel && $panel->memberTwo ? [
+                        'id' => $panel->memberTwo->id,
+                        'name' => $panel->memberTwo->name,
+                    ] : null,
                 ],
             ],
             'permissions' => [
@@ -388,39 +367,22 @@ class ThesisTitleController extends Controller
 
         $panelMembers = $request->panelMembers();
 
-        $chairmanId = $this->resolvePanelMemberId($panelMembers['chairman_id'], 'chairman_id');
-
-        $memberIds = collect($panelMembers['member_ids'] ?? [])
-            ->filter(fn ($id) => $id !== null && $id !== '')
-            ->map(fn ($id) => (int) $id)
-            ->filter(fn ($id) => $id > 0)
-            ->values();
-
-        $memberIds = $memberIds
-            ->filter(fn ($id) => $chairmanId === null || $id !== $chairmanId)
-            ->filter(fn ($id) => $thesisTitle->adviser_id === null || $id !== (int) $thesisTitle->adviser_id)
-            ->unique()
-            ->values();
-
         $panel = [
-            'chairman_id' => $chairmanId,
-            'member_one_id' => $memberIds->get(0),
-            'member_two_id' => $memberIds->get(1),
+            'chairman_id' => $this->resolvePanelMemberId($panelMembers['chairman_id'], 'chairman_id'),
+            'member_one_id' => $this->resolvePanelMemberId($panelMembers['member_one_id'], 'member_one_id'),
+            'member_two_id' => $this->resolvePanelMemberId($panelMembers['member_two_id'], 'member_two_id'),
         ];
 
-        $panelModel = $thesisTitle->panel()->firstOrCreate([
-            'thesis_title_id' => $thesisTitle->id,
-        ]);
+        // Remove adviser if they were assigned and avoid duplicates.
+        $panel = collect($panel)->map(function ($value) use ($thesisTitle) {
+            if ($value && $value === (int) $thesisTitle->adviser_id) {
+                return null;
+            }
 
-        $panelModel->update($panel);
+            return $value;
+        })->all();
 
-        $panelModel->members()->delete();
-
-        foreach ($memberIds as $memberId) {
-            $panelModel->members()->create([
-                'user_id' => $memberId,
-            ]);
-        }
+        $thesisTitle->panel()->updateOrCreate([], $panel);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
