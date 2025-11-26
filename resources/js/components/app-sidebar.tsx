@@ -87,10 +87,14 @@ export function AppSidebar() {
         });
     }
 
-    if (isDean) {
+    const deanRoute = typeof ThesisTitleController.dean === 'function'
+        ? ThesisTitleController.dean()
+        : null;
+
+    if (isDean && deanRoute) {
         mainNavItems.push({
             title: 'Thesis Deans',
-            href: ThesisTitleController.dean(),
+            href: deanRoute,
             icon: Building2,
         });
     }
