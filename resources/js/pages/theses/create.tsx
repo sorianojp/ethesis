@@ -110,7 +110,9 @@ export default function ThesisCreate({ thesisTitle }: ThesisCreateProps) {
                                             type="submit"
                                             disabled={processing}
                                         >
-                                            Save
+                                            {processing
+                                                ? 'Uploading...'
+                                                : 'Save'}
                                         </Button>
                                     </div>
                                 </>
