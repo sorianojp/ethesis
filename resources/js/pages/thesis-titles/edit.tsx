@@ -335,7 +335,7 @@ export default function ThesisTitleEdit({
                                                     aria-label="Search members"
                                                 />
                                                 {memberQuery.trim() !== '' && (
-                                                    <div className="absolute z-10 mt-2 max-h-48 w-full space-y-1 overflow-y-auto rounded-md border border-border bg-white shadow-lg">
+                                                    <div className="absolute z-10 mt-2 max-h-48 w-full space-y-1 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
                                                         {studentLoading ? (
                                                             <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                                                                 <Spinner className="h-4 w-4" />
