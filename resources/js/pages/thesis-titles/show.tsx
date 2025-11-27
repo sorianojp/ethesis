@@ -55,6 +55,11 @@ interface PanelOption {
     name: string;
 }
 
+type SimilarWord =
+    | string
+    | number
+    | { word?: string; index?: number; [key: string]: unknown };
+
 interface PlagiarismFinding {
     startIndex?: number;
     endIndex?: number;
@@ -72,7 +77,7 @@ interface PlagiarismSource {
     totalNumberOfWords?: number;
     identicalWordCounts?: number;
     similarWordCounts?: number;
-    similarWords?: unknown[];
+    similarWords?: SimilarWord[];
     citation?: boolean;
     canAccess?: boolean;
     is_excluded?: boolean;
@@ -207,6 +212,24 @@ const STATUS_META: Record<
     pending: { label: 'Pending', variant: 'secondary' },
     approved: { label: 'Approved', variant: 'default' },
     rejected: { label: 'Rejected', variant: 'destructive' },
+};
+
+const formatSimilarWord = (value: SimilarWord): string => {
+    if (typeof value === 'string' || typeof value === 'number') {
+        return String(value);
+    }
+
+    if (value && typeof value === 'object') {
+        if ('word' in value && value.word !== undefined && value.word !== null) {
+            return String(value.word);
+        }
+
+        const stringified = JSON.stringify(value);
+
+        return stringified === '{}' ? '' : stringified;
+    }
+
+    return '';
 };
 
 interface ThesisRemarkDialogProps {
@@ -515,18 +538,29 @@ function PlagiarismScanDialog({ scan }: PlagiarismScanDialogProps) {
                                                             (
                                                                 word,
                                                                 wordIndex,
-                                                            ) => (
-                                                                <li
-                                                                    key={`${wordIndex}-${String(
+                                                            ) => {
+                                                                const displayWord =
+                                                                    formatSimilarWord(
                                                                         word,
-                                                                    )}`}
-                                                                    className="text-foreground"
-                                                                >
-                                                                    {String(
-                                                                        word,
-                                                                    )}
-                                                                </li>
-                                                            ),
+                                                                    );
+
+                                                                if (
+                                                                    !displayWord
+                                                                ) {
+                                                                    return null;
+                                                                }
+
+                                                                return (
+                                                                    <li
+                                                                        key={`${wordIndex}-${displayWord}`}
+                                                                        className="text-foreground"
+                                                                    >
+                                                                        {
+                                                                            displayWord
+                                                                        }
+                                                                    </li>
+                                                                );
+                                                            },
                                                         )}
                                                     </ul>
                                                 </div>
