@@ -430,21 +430,17 @@ export default function ThesisTitleCreate({
 
                                     <div className="space-y-2">
                                         <Label htmlFor="abstract_pdf">
-                                            Abstract PDF{' '}
-                                            <span className="text-destructive">
-                                                *
-                                            </span>
+                                            Abstract PDF (optional)
                                         </Label>
                                         <Input
                                             id="abstract_pdf"
                                             name="abstract_pdf"
                                             type="file"
                                             accept="application/pdf"
-                                            required
                                         />
                                         <p className="text-xs text-muted-foreground">
                                             Upload the final abstract in PDF
-                                            format.
+                                            format if available.
                                         </p>
                                         <InputError
                                             message={errors.abstract_pdf}
@@ -453,21 +449,17 @@ export default function ThesisTitleCreate({
 
                                     <div className="space-y-2">
                                         <Label htmlFor="endorsement_pdf">
-                                            Endorsement PDF{' '}
-                                            <span className="text-destructive">
-                                                *
-                                            </span>
+                                            Endorsement PDF (optional)
                                         </Label>
                                         <Input
                                             id="endorsement_pdf"
                                             name="endorsement_pdf"
                                             type="file"
                                             accept="application/pdf"
-                                            required
                                         />
                                         <p className="text-xs text-muted-foreground">
                                             Upload the signed endorsement in PDF
-                                            format.
+                                            format if available.
                                         </p>
                                         <InputError
                                             message={errors.endorsement_pdf}

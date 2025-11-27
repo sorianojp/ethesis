@@ -215,17 +215,21 @@ class ThesisTitleController extends Controller
         $memberIds = $this->sanitizeMemberIds($data['member_ids'] ?? [], $request->user()->id)->all();
         $collegeName = $this->resolveStudentCollegeName($request);
 
-        $abstractPath = $this->uploadPdf(
-            $request->file('abstract_pdf'),
-            $request->user()->id,
-            'abstracts'
-        );
+        $abstractPath = $request->hasFile('abstract_pdf')
+            ? $this->uploadPdf(
+                $request->file('abstract_pdf'),
+                $request->user()->id,
+                'abstracts'
+            )
+            : null;
 
-        $endorsementPath = $this->uploadPdf(
-            $request->file('endorsement_pdf'),
-            $request->user()->id,
-            'endorsements'
-        );
+        $endorsementPath = $request->hasFile('endorsement_pdf')
+            ? $this->uploadPdf(
+                $request->file('endorsement_pdf'),
+                $request->user()->id,
+                'endorsements'
+            )
+            : null;
 
         $thesisTitle = ThesisTitle::create([
             'user_id' => $request->user()->id,

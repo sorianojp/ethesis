@@ -26,8 +26,8 @@ class StoreThesisTitleRequest extends FormRequest
         return [
             'adviser_id' => ['required', 'integer', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
-            'abstract_pdf' => ['required', 'file', 'mimes:pdf'],
-            'endorsement_pdf' => ['required', 'file', 'mimes:pdf'],
+            'abstract_pdf' => ['nullable', 'file', 'mimes:pdf'],
+            'endorsement_pdf' => ['nullable', 'file', 'mimes:pdf'],
             'member_ids' => ['nullable', 'array'],
             'member_ids.*' => ['integer', 'distinct', 'exists:users,id'],
         ];
