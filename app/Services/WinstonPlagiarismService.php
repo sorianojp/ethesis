@@ -110,7 +110,7 @@ class WinstonPlagiarismService
 
         $numericScore = (float) $score;
 
-        if ($numericScore <= 1) {
+        if ($numericScore < 1) {
             $numericScore *= 100;
         }
 

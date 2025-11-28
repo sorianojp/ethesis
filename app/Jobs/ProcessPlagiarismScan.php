@@ -134,7 +134,7 @@ class ProcessPlagiarismScan implements ShouldQueue
 
         $numericScore = (float) $score;
 
-        if ($numericScore <= 1) {
+        if ($numericScore < 1) {
             $numericScore *= 100;
         }
 
