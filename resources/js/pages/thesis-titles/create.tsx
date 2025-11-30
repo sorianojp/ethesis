@@ -125,7 +125,7 @@ export default function ThesisTitleCreate({
         ): Promise<Option[]> => {
             const params = new URLSearchParams({
                 type,
-                limit: '20',
+                limit: '50',
             });
 
             const trimmed = query.trim();

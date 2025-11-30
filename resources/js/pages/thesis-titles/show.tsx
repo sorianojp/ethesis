@@ -220,7 +220,11 @@ const formatSimilarWord = (value: SimilarWord): string => {
     }
 
     if (value && typeof value === 'object') {
-        if ('word' in value && value.word !== undefined && value.word !== null) {
+        if (
+            'word' in value &&
+            value.word !== undefined &&
+            value.word !== null
+        ) {
             return String(value.word);
         }
 

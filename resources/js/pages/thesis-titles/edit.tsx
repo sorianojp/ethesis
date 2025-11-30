@@ -178,7 +178,7 @@ export default function ThesisTitleEdit({
         ): Promise<Option[]> => {
             const params = new URLSearchParams({
                 type,
-                limit: '20',
+                limit: '50',
             });
 
             const trimmed = query.trim();

@@ -27,6 +27,9 @@ use RuntimeException;
 
 class ThesisTitleController extends Controller
 {
+    private const OPTION_LIMIT_DEFAULT = 50;
+    private const OPTION_LIMIT_MAX = 100;
+
     public function index(Request $request): Response|RedirectResponse
     {
         if ($this->userIsTeacher($request->user()) && ! $this->userHasRole($request->user(), 'Student')) {
@@ -107,8 +110,8 @@ class ThesisTitleController extends Controller
             ]);
         }
 
-        $limit = (int) $request->input('limit', 20);
-        $limit = max(1, min($limit, 50));
+        $limit = (int) $request->input('limit', self::OPTION_LIMIT_DEFAULT);
+        $limit = max(1, min($limit, self::OPTION_LIMIT_MAX));
 
         $search = (string) $request->string('search')->trim();
 
@@ -157,12 +160,12 @@ class ThesisTitleController extends Controller
         return $this->buildOptions(
             User::students()->whereKeyNot($excludeId),
             (string) $request->string('student_search')->trim(),
-            20,
+            self::OPTION_LIMIT_DEFAULT,
             $includeIds
         );
     }
 
-    private function buildOptions(Builder $baseQuery, string $search, ?int $limit = 20, array $includeIds = []): array
+    private function buildOptions(Builder $baseQuery, string $search, ?int $limit = self::OPTION_LIMIT_DEFAULT, array $includeIds = []): array
     {
         $query = clone $baseQuery;
 
