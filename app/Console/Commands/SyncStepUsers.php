@@ -21,7 +21,7 @@ class SyncStepUsers extends Command
      * @var string
      */
     protected $signature = 'step:sync-users
-        {--per-page=100 : Number of users to fetch per page (1-100)}
+        {--per-page=100 : Number of users to fetch per page (1-500)}
         {--page= : Fetch a specific page (1-indexed)}
         {--dry-run : Preview the sync without modifying the database}';
 
@@ -35,7 +35,7 @@ class SyncStepUsers extends Command
     public function handle(StepAuthService $stepAuth): int
     {
         $perPage = (int) $this->option('per-page');
-        $perPage = max(1, min($perPage, 100));
+        $perPage = max(1, min($perPage, 500));
         $requestedPage = $this->option('page');
         $requestedPage = is_null($requestedPage) ? null : max(1, (int) $requestedPage);
         $dryRun = (bool) $this->option('dry-run');
@@ -119,6 +119,7 @@ class SyncStepUsers extends Command
             foreach ($users as $userData) {
                 if (! is_array($userData)) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -127,6 +128,7 @@ class SyncStepUsers extends Command
                 if (! is_string($email)) {
                     $skipped++;
                     $this->warn('Skipped user with invalid email address.');
+
                     continue;
                 }
 
