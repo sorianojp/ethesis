@@ -21,7 +21,7 @@ class SyncStepUsers extends Command
      * @var string
      */
     protected $signature = 'step:sync-users
-        {--per-page=100 : Number of users to fetch per page (1-500)}
+        {--per-page=500 : Number of users to fetch per page (1-500)}
         {--page= : Fetch a specific page (1-indexed)}
         {--dry-run : Preview the sync without modifying the database}';
 
@@ -123,11 +123,12 @@ class SyncStepUsers extends Command
                     continue;
                 }
 
-                $email = filter_var($userData['email'] ?? null, FILTER_VALIDATE_EMAIL);
+                $emailRaw = $userData['email'] ?? null;
+                $email = filter_var($emailRaw, FILTER_VALIDATE_EMAIL);
 
                 if (! is_string($email)) {
                     $skipped++;
-                    $this->warn('Skipped user with invalid email address.');
+                    $this->warn('Skipped user with invalid email address: '.$this->describeValue($emailRaw));
 
                     continue;
                 }
@@ -250,5 +251,32 @@ class SyncStepUsers extends Command
             ->filter()
             ->unique()
             ->values();
+    }
+
+    private function describeValue(mixed $value): string
+    {
+        if (is_string($value)) {
+            return $value === '' ? '(empty string)' : $value;
+        }
+
+        if (is_null($value)) {
+            return 'null';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        if (is_array($value)) {
+            $encoded = json_encode($value);
+
+            return $encoded === false ? '[array]' : $encoded;
+        }
+
+        return '['.gettype($value).']';
     }
 }
