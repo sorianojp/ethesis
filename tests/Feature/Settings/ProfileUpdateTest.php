@@ -21,9 +21,12 @@ class ProfileUpdateTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_profile_information_can_be_updated()
+    public function test_profile_information_cannot_be_updated()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'name' => 'Original User',
+            'email' => 'original@example.com',
+        ]);
 
         $response = $this
             ->actingAs($user)
@@ -32,33 +35,12 @@ class ProfileUpdateTest extends TestCase
                 'email' => 'test@example.com',
             ]);
 
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('profile.edit'));
+        $response->assertForbidden();
 
         $user->refresh();
 
-        $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
-    }
-
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged()
-    {
-        $user = User::factory()->create();
-
-        $response = $this
-            ->actingAs($user)
-            ->patch(route('profile.update'), [
-                'name' => 'Test User',
-                'email' => $user->email,
-            ]);
-
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('profile.edit'));
-
-        $this->assertNotNull($user->refresh()->email_verified_at);
+        $this->assertSame('Original User', $user->name);
+        $this->assertSame('original@example.com', $user->email);
     }
 
     public function test_user_can_delete_their_account()

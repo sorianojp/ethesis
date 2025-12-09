@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Settings\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,18 +25,12 @@ class ProfileController extends Controller
 
     /**
      * Update the user's profile settings.
+     *
+     * Disabled to prevent changes to user profile data.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(): never
     {
-        $request->user()->fill($request->validated());
-
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
-
-        $request->user()->save();
-
-        return to_route('profile.edit');
+        abort(403, 'Profile updates are currently disabled.');
     }
 
     /**
