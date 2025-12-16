@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateThesisTitleRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
 use App\Models\User;
+use App\Notifications\ThesisTitleCreated;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\Notification as BaseNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -256,6 +258,9 @@ class ThesisTitleController extends Controller
         ]);
 
         $thesisTitle->members()->sync($memberIds);
+        $thesisTitle->loadMissing(['adviser', 'technicalAdviser', 'user']);
+
+        $this->notifyAdvisers($thesisTitle, new ThesisTitleCreated($thesisTitle));
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -789,6 +794,19 @@ class ThesisTitleController extends Controller
             ->filter(fn ($id) => $id > 0 && $id !== $leaderId)
             ->unique()
             ->values();
+    }
+
+    private function notifyAdvisers(ThesisTitle $thesisTitle, BaseNotification $notification): void
+    {
+        $this->collectAdviserRecipients($thesisTitle)
+            ->each(fn (User $user) => $user->notify($notification));
+    }
+
+    private function collectAdviserRecipients(ThesisTitle $thesisTitle): Collection
+    {
+        return collect([$thesisTitle->adviser, $thesisTitle->technicalAdviser])
+            ->filter()
+            ->unique(fn (User $user) => $user->getKey());
     }
 
     private function roleMatches(mixed $assigned, string $role): bool

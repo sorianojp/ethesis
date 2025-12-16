@@ -8,10 +8,14 @@ use App\Http\Requests\UpdateThesisRequest;
 use App\Http\Requests\UpdateThesisStatusRequest;
 use App\Models\Thesis;
 use App\Models\ThesisTitle;
+use App\Notifications\ThesisStatusUpdated;
+use App\Notifications\ThesisUploaded;
 use App\Services\WinstonPlagiarismService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\Notification as BaseNotification;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -59,6 +63,8 @@ class ThesisController extends Controller
         ]);
 
         $this->initiatePlagiarismScan($thesis, $path);
+        $thesisTitle->loadMissing(['adviser', 'technicalAdviser', 'user']);
+        $this->notifyAdvisers($thesisTitle, new ThesisUploaded($thesisTitle, $thesis));
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -131,6 +137,10 @@ class ThesisController extends Controller
             'status' => $status,
             'rejection_remark' => $status === ThesisStatus::REJECTED ? $request->rejectionRemark() : null,
         ]);
+        $thesisTitle->loadMissing(['user', 'members']);
+        $notification = new ThesisStatusUpdated($thesis, $status);
+
+        $this->notifyParticipants($thesisTitle, $notification);
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
     }
@@ -144,6 +154,29 @@ class ThesisController extends Controller
         $thesis->delete();
 
         return redirect()->route('thesis-titles.show', $thesisTitle);
+    }
+
+    private function notifyAdvisers(ThesisTitle $thesisTitle, BaseNotification $notification): void
+    {
+        $this->collectAdviserRecipients($thesisTitle)
+            ->each(fn ($user) => $user->notify($notification));
+    }
+
+    private function notifyParticipants(ThesisTitle $thesisTitle, BaseNotification $notification): void
+    {
+        $participants = collect([$thesisTitle->user])
+            ->merge($thesisTitle->members ?? collect())
+            ->filter()
+            ->unique(fn ($user) => $user->getKey());
+
+        $participants->each(fn ($user) => $user->notify($notification));
+    }
+
+    private function collectAdviserRecipients(ThesisTitle $thesisTitle): Collection
+    {
+        return collect([$thesisTitle->adviser, $thesisTitle->technicalAdviser])
+            ->filter()
+            ->unique(fn ($user) => $user->getKey());
     }
 
     private function ensureOwnership(Request $request, ThesisTitle $thesisTitle, ?Thesis $thesis = null): void
