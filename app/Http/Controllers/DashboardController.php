@@ -45,6 +45,7 @@ class DashboardController extends Controller
         $activeThesis = ThesisTitle::query()
             ->with([
                 'adviser:id,name',
+                'technicalAdviser:id,name',
                 'members:id,name',
                 'theses:id,thesis_title_id,status,chapter,post_grad,created_at,updated_at',
             ])
@@ -145,6 +146,7 @@ class DashboardController extends Controller
                 'id' => $activeThesis->id,
                 'title' => $activeThesis->title,
                 'adviser' => $activeThesis->adviser?->only(['id', 'name']),
+                'technical_adviser' => $activeThesis->technicalAdviser?->only(['id', 'name']),
                 'members' => $activeThesis->members
                     ->map(fn ($member) => $member->only(['id', 'name']))
                     ->values(),

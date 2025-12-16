@@ -88,6 +88,10 @@
             <div class="name">{{ $adviserName }}</div>
             <div>Adviser</div>
         </div>
+        <div class="signature-block" style="margin-left: 32px;">
+            <div class="name">{{ $technicalAdviserName }}</div>
+            <div>Technical Adviser</div>
+        </div>
     </div>
 
     <p class="indent">

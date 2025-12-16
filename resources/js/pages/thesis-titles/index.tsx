@@ -15,6 +15,7 @@ interface ThesisTitleListItem {
     id: number;
     title: string;
     adviser: { id: number; name: string } | null;
+    technical_adviser: { id: number; name: string } | null;
     theses_count: number;
     created_at: string | null;
 }
@@ -30,6 +31,7 @@ interface MemberThesisTitleListItem {
     title: string;
     leader: { id: number; name: string } | null;
     adviser: { id: number; name: string } | null;
+    technical_adviser: { id: number; name: string } | null;
     theses_count: number;
     created_at: string | null;
 }
@@ -96,6 +98,9 @@ export default function ThesisTitleIndex({
                                         Adviser
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                        Technical Adviser
+                                    </th>
+                                    <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                         Chapters
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -110,7 +115,7 @@ export default function ThesisTitleIndex({
                                 {thesisTitles.data.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="px-6 py-10 text-center text-sm text-muted-foreground"
                                         >
                                             No thesis yet. Create one to get
@@ -126,6 +131,9 @@ export default function ThesisTitleIndex({
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {item.adviser?.name ?? '—'}
+                                        </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            {item.technical_adviser?.name ?? '—'}
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {item.theses_count}
@@ -233,6 +241,9 @@ export default function ThesisTitleIndex({
                                                 Adviser
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                                Technical Adviser
+                                            </th>
+                                            <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                                 Chapters
                                             </th>
                                             <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -252,15 +263,18 @@ export default function ThesisTitleIndex({
                                                 <td className="px-6 py-4 font-medium text-foreground">
                                                     {item.title}
                                                 </td>
-                                                <td className="px-6 py-4 text-muted-foreground">
-                                                    {item.leader?.name ?? '—'}
-                                                </td>
-                                                <td className="px-6 py-4 text-muted-foreground">
-                                                    {item.adviser?.name ?? '—'}
-                                                </td>
-                                                <td className="px-6 py-4 text-muted-foreground">
-                                                    {item.theses_count}
-                                                </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            {item.leader?.name ?? '—'}
+                                        </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            {item.adviser?.name ?? '—'}
+                                        </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            {item.technical_adviser?.name ?? '—'}
+                                        </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            {item.theses_count}
+                                        </td>
                                                 <td className="px-6 py-4 text-muted-foreground">
                                                     {formatDate(
                                                         item.created_at,

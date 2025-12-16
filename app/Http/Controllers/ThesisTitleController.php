@@ -38,7 +38,7 @@ class ThesisTitleController extends Controller
 
         $thesisTitles = ThesisTitle::query()
             ->withCount('theses')
-            ->with('adviser')
+            ->with(['adviser', 'technicalAdviser'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->paginate(10)
@@ -50,6 +50,10 @@ class ThesisTitleController extends Controller
                     'id' => $title->adviser->id,
                     'name' => $title->adviser->name,
                 ] : null,
+                'technical_adviser' => $title->technicalAdviser ? [
+                    'id' => $title->technicalAdviser->id,
+                    'name' => $title->technicalAdviser->name,
+                ] : null,
                 'theses_count' => $title->theses_count,
                 'abstract_pdf_url' => $this->fileUrl($title->abstract_pdf),
                 'endorsement_pdf_url' => $this->fileUrl($title->endorsement_pdf),
@@ -57,7 +61,7 @@ class ThesisTitleController extends Controller
             ]);
 
         $memberThesisTitles = ThesisTitle::query()
-            ->with(['adviser', 'user'])
+            ->with(['adviser', 'technicalAdviser', 'user'])
             ->withCount('theses')
             ->whereHas('members', fn ($query) => $query->where('users.id', $request->user()->id))
             ->where('user_id', '!=', $request->user()->id)
@@ -73,6 +77,10 @@ class ThesisTitleController extends Controller
                 'adviser' => $title->adviser ? [
                     'id' => $title->adviser->id,
                     'name' => $title->adviser->name,
+                ] : null,
+                'technical_adviser' => $title->technicalAdviser ? [
+                    'id' => $title->technicalAdviser->id,
+                    'name' => $title->technicalAdviser->name,
                 ] : null,
                 'theses_count' => $title->theses_count,
                 'created_at' => optional($title->created_at)->toIso8601String(),
@@ -215,6 +223,9 @@ class ThesisTitleController extends Controller
         $data = $request->validated();
 
         $adviser = $this->resolveAdviser((int) $data['adviser_id']);
+        $technicalAdviser = $this->resolveTechnicalAdviser(
+            isset($data['technical_adviser_id']) ? (int) $data['technical_adviser_id'] : null
+        );
         $memberIds = $this->sanitizeMemberIds($data['member_ids'] ?? [], $request->user()->id)->all();
         $collegeName = $this->resolveStudentCollegeName($request);
 
@@ -237,6 +248,7 @@ class ThesisTitleController extends Controller
         $thesisTitle = ThesisTitle::create([
             'user_id' => $request->user()->id,
             'adviser_id' => $adviser->id,
+            'technical_adviser_id' => $technicalAdviser?->id,
             'college_name' => $collegeName,
             'title' => $data['title'],
             'abstract_pdf' => $abstractPath,
@@ -255,6 +267,7 @@ class ThesisTitleController extends Controller
         $thesisTitle->load([
             'theses' => fn ($query) => $query->latest()->with('latestPlagiarismScan'),
             'adviser',
+            'technicalAdviser',
             'members',
             'panel.chairman',
             'panel.memberOne',
@@ -264,6 +277,8 @@ class ThesisTitleController extends Controller
 
         $canManage = (int) $request->user()->id === (int) $thesisTitle->user_id;
         $canReview = $thesisTitle->adviser_id && (int) $request->user()->id === (int) $thesisTitle->adviser_id;
+        $isTechnicalAdviser = $thesisTitle->technical_adviser_id
+            && (int) $request->user()->id === (int) $thesisTitle->technical_adviser_id;
         $panel = $thesisTitle->panel;
         $isMember = $thesisTitle->members->contains(
             fn (User $member) => (int) $member->id === (int) $request->user()->id
@@ -287,6 +302,10 @@ class ThesisTitleController extends Controller
                 'adviser' => $thesisTitle->adviser ? [
                     'id' => $thesisTitle->adviser->id,
                     'name' => $thesisTitle->adviser->name,
+                ] : null,
+                'technical_adviser' => $thesisTitle->technicalAdviser ? [
+                    'id' => $thesisTitle->technicalAdviser->id,
+                    'name' => $thesisTitle->technicalAdviser->name,
                 ] : null,
                 'leader' => $thesisTitle->user ? [
                     'id' => $thesisTitle->user->id,
@@ -362,7 +381,7 @@ class ThesisTitleController extends Controller
             'permissions' => [
                 'manage' => $canManage,
                 'review' => (bool) $canReview,
-                'view_documents' => (bool) ($canManage || $canReview || $isMember),
+                'view_documents' => (bool) ($canManage || $canReview || $isMember || $isTechnicalAdviser),
             ],
             'panelOptions' => $teachers,
         ]);
@@ -428,7 +447,10 @@ class ThesisTitleController extends Controller
         $this->ensureOwnership($request, $thesisTitle);
         $this->ensureStudent($request);
 
-        $thesisTitle->load(['members' => fn ($query) => $query->select('users.id', 'users.name')]);
+        $thesisTitle->load([
+            'members' => fn ($query) => $query->select('users.id', 'users.name'),
+            'technicalAdviser:id,name',
+        ]);
 
         $members = $thesisTitle->members
             ->map(fn (User $member) => [
@@ -437,10 +459,12 @@ class ThesisTitleController extends Controller
             ])
             ->values();
 
-        $teachers = $this->teacherOptions(
-            $request,
-            $thesisTitle->adviser_id ? [$thesisTitle->adviser_id] : []
-        );
+        $teacherIncludeIds = array_values(array_filter([
+            $thesisTitle->adviser_id,
+            $thesisTitle->technical_adviser_id,
+        ]));
+
+        $teachers = $this->teacherOptions($request, $teacherIncludeIds);
 
         $students = $this->studentOptions(
             $request,
@@ -455,6 +479,10 @@ class ThesisTitleController extends Controller
                 'adviser' => $thesisTitle->adviser ? [
                     'id' => $thesisTitle->adviser->id,
                     'name' => $thesisTitle->adviser->name,
+                ] : null,
+                'technical_adviser' => $thesisTitle->technicalAdviser ? [
+                    'id' => $thesisTitle->technicalAdviser->id,
+                    'name' => $thesisTitle->technicalAdviser->name,
                 ] : null,
                 'abstract_pdf_url' => $this->fileUrl($thesisTitle->abstract_pdf),
                 'endorsement_pdf_url' => $this->fileUrl($thesisTitle->endorsement_pdf),
@@ -474,11 +502,15 @@ class ThesisTitleController extends Controller
         $data = $request->validated();
 
         $adviser = $this->resolveAdviser((int) $data['adviser_id']);
+        $technicalAdviser = $this->resolveTechnicalAdviser(
+            isset($data['technical_adviser_id']) ? (int) $data['technical_adviser_id'] : null
+        );
         $memberIds = $this->sanitizeMemberIds($data['member_ids'] ?? [], $request->user()->id)->all();
 
         $update = [
             'title' => $data['title'],
             'adviser_id' => $adviser->id,
+            'technical_adviser_id' => $technicalAdviser?->id,
         ];
 
         if ($request->hasFile('abstract_pdf')) {
@@ -558,7 +590,7 @@ class ThesisTitleController extends Controller
         $collegeName = $this->resolveStaffCollegeName($request);
 
         $thesisTitles = ThesisTitle::query()
-            ->with(['user', 'adviser'])
+            ->with(['user', 'adviser', 'technicalAdviser'])
             ->withCount('theses')
             ->when($collegeName !== null, fn ($query) => $query->where('college_name', $collegeName))
             ->latest()
@@ -575,6 +607,10 @@ class ThesisTitleController extends Controller
                 'adviser' => $title->adviser ? [
                     'id' => $title->adviser->id,
                     'name' => $title->adviser->name,
+                ] : null,
+                'technical_adviser' => $title->technicalAdviser ? [
+                    'id' => $title->technicalAdviser->id,
+                    'name' => $title->technicalAdviser->name,
                 ] : null,
                 'theses_count' => $title->theses_count,
                 'created_at' => optional($title->created_at)->toIso8601String(),
@@ -649,6 +685,10 @@ class ThesisTitleController extends Controller
         }
 
         if ($thesisTitle->adviser_id && $user->id === $thesisTitle->adviser_id) {
+            return;
+        }
+
+        if ($thesisTitle->technical_adviser_id && $user->id === $thesisTitle->technical_adviser_id) {
             return;
         }
 
@@ -797,6 +837,23 @@ class ThesisTitleController extends Controller
         return $adviser;
     }
 
+    private function resolveTechnicalAdviser(?int $technicalAdviserId): ?User
+    {
+        if (! $technicalAdviserId) {
+            return null;
+        }
+
+        $technicalAdviser = User::teachers()->find($technicalAdviserId);
+
+        if (! $technicalAdviser) {
+            throw ValidationException::withMessages([
+                'technical_adviser_id' => __('Selected technical adviser must be a teacher.'),
+            ]);
+        }
+
+        return $technicalAdviser;
+    }
+
     private function downloadApprovalForm(Request $request, ThesisTitle $thesisTitle, string $level)
     {
         $this->ensureCanView($request, $thesisTitle);
@@ -805,6 +862,7 @@ class ThesisTitleController extends Controller
 
         $thesisTitle->load([
             'adviser',
+            'technicalAdviser',
             'members',
             'panel.chairman',
             'panel.memberOne',
@@ -818,6 +876,7 @@ class ThesisTitleController extends Controller
         $participantNames = $this->buildParticipantNames($thesisTitle);
         $participantsLine = $this->formatParticipantsLine($participantNames);
         $adviserName = optional($thesisTitle->adviser)->name ?? '_________________________';
+        $technicalAdviserName = optional($thesisTitle->technicalAdviser)->name ?? '_________________________';
         if ($studentName === '_________________________' && ! empty($participantNames)) {
             $studentName = $participantNames[0];
         }
@@ -835,6 +894,7 @@ class ThesisTitleController extends Controller
             'courseName' => $courseName,
             'thesisTitle' => $thesisTitle->title ?? '_________________________',
             'adviserName' => $adviserName,
+            'technicalAdviserName' => $technicalAdviserName,
             'finalDefenseDate' => $finalDefenseDate,
             'chairmanName' => $chairmanName,
             'memberOneName' => $memberOneName,
@@ -1001,6 +1061,7 @@ class ThesisTitleController extends Controller
 
         $thesisTitle->load([
             'adviser',
+            'technicalAdviser',
             'members',
             'panel.chairman',
             'panel.memberOne',

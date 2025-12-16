@@ -148,6 +148,7 @@ interface ThesisTitleShowProps {
         id: number;
         title: string;
         adviser: { id: number; name: string } | null;
+        technical_adviser: { id: number; name: string } | null;
         leader: { id: number; name: string } | null;
         abstract_pdf_url: string | null;
         endorsement_pdf_url: string | null;
@@ -861,9 +862,9 @@ export default function ThesisTitleShow({
                 : '',
         }),
         [
-            thesisTitle.panel.chairman?.id,
-            thesisTitle.panel.member_one?.id,
-            thesisTitle.panel.member_two?.id,
+            thesisTitle.panel.chairman,
+            thesisTitle.panel.member_one,
+            thesisTitle.panel.member_two,
         ],
     );
 
@@ -890,9 +891,9 @@ export default function ThesisTitleShow({
             },
         ],
         [
-            thesisTitle.panel.chairman?.name,
-            thesisTitle.panel.member_one?.name,
-            thesisTitle.panel.member_two?.name,
+            thesisTitle.panel.chairman,
+            thesisTitle.panel.member_one,
+            thesisTitle.panel.member_two,
         ],
     );
 
@@ -1010,12 +1011,15 @@ export default function ThesisTitleShow({
     const showTeamSummary =
         thesisTitle.leader !== null ||
         thesisTitle.adviser !== null ||
+        thesisTitle.technical_adviser !== null ||
         hasMembers;
     const leaderDisplayName =
         thesisTitle.leader !== null
             ? `${thesisTitle.leader.name}${isLeaderViewer ? ' (You)' : ''}`
             : '—';
     const adviserDisplayName = thesisTitle.adviser?.name ?? '—';
+    const technicalAdviserDisplayName =
+        thesisTitle.technical_adviser?.name ?? '—';
     const membersDisplayName = hasMembers
         ? thesisTitle.members.map((member) => member.name).join(', ')
         : '—';
@@ -1055,6 +1059,14 @@ export default function ThesisTitleShow({
                                         </dt>
                                         <dd className="mt-1">
                                             {adviserDisplayName}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            Technical Adviser
+                                        </dt>
+                                        <dd className="mt-1">
+                                            {technicalAdviserDisplayName}
                                         </dd>
                                     </div>
                                     <div>

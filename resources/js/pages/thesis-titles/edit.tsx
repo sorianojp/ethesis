@@ -24,6 +24,7 @@ interface ThesisTitleEditProps {
         id: number;
         title: string;
         adviser: { id: number; name: string } | null;
+        technical_adviser: { id: number; name: string } | null;
         abstract_pdf_url: string | null;
         endorsement_pdf_url: string | null;
         member_ids: number[];
@@ -126,14 +127,26 @@ export default function ThesisTitleEdit({
 
         return initialTeacherOptions[0] ?? null;
     });
+    const [selectedTechnicalAdviser, setSelectedTechnicalAdviser] =
+        useState<Option | null>(() => {
+            if (thesisTitle.technical_adviser) {
+                return {
+                    id: thesisTitle.technical_adviser.id.toString(),
+                    name: thesisTitle.technical_adviser.name,
+                };
+            }
+
+            return null;
+        });
 
     const teacherOptions = useMemo(
         () =>
             mergeOptions(
                 initialTeacherOptions,
                 selectedAdviser ? [selectedAdviser] : [],
+                selectedTechnicalAdviser ? [selectedTechnicalAdviser] : [],
             ),
-        [initialTeacherOptions, selectedAdviser],
+        [initialTeacherOptions, selectedAdviser, selectedTechnicalAdviser],
     );
 
     const [studentOptions, setStudentOptions] = useState<Option[]>(() =>
@@ -479,6 +492,84 @@ export default function ThesisTitleEdit({
                                         />
                                         <InputError
                                             message={errors.adviser_id}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="technical_adviser_id">
+                                            Technical Adviser (optional)
+                                        </Label>
+                                        <Select
+                                            value={
+                                                selectedTechnicalAdviser?.id ??
+                                                'none'
+                                            }
+                                            onValueChange={(value) => {
+                                                if (value === 'none') {
+                                                    setSelectedTechnicalAdviser(
+                                                        null,
+                                                    );
+                                                    return;
+                                                }
+
+                                                const technical =
+                                                    teacherOptions.find(
+                                                        (option) =>
+                                                            option.id ===
+                                                            value,
+                                                    ) ?? null;
+
+                                                setSelectedTechnicalAdviser(
+                                                    technical,
+                                                );
+                                            }}
+                                            disabled={
+                                                teacherOptions.length === 0
+                                            }
+                                        >
+                                            <SelectTrigger
+                                                id="technical_adviser_id"
+                                                aria-invalid={Boolean(
+                                                    errors.technical_adviser_id,
+                                                )}
+                                            >
+                                                <SelectValue placeholder="Choose technical adviser" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">
+                                                    None
+                                                </SelectItem>
+                                                {teacherOptions.map(
+                                                    (teacher) => (
+                                                        <SelectItem
+                                                            value={teacher.id}
+                                                            key={teacher.id}
+                                                        >
+                                                            {teacher.name}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        {teacherOptions.length === 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                                No teachers available. Contact
+                                                an administrator.
+                                            </p>
+                                        )}
+                                        {selectedTechnicalAdviser && (
+                                            <input
+                                                type="hidden"
+                                                name="technical_adviser_id"
+                                                value={
+                                                    selectedTechnicalAdviser.id
+                                                }
+                                            />
+                                        )}
+                                        <InputError
+                                            message={
+                                                errors.technical_adviser_id
+                                            }
                                         />
                                     </div>
 

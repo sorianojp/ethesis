@@ -19,6 +19,7 @@ interface ThesisTitleListItem {
     college_name: string | null;
     leader: { id: number; name: string } | null;
     adviser: { id: number; name: string } | null;
+    technical_adviser: { id: number; name: string } | null;
     theses_count: number;
     created_at: string | null;
     view_url: string;
@@ -91,6 +92,9 @@ export default function DeanTheses({ collegeName, thesisTitles }: DeanThesesProp
                                         Adviser
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+                                        Technical Adviser
+                                    </th>
+                                    <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
                                         College
                                     </th>
                                     <th className="px-6 py-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -108,7 +112,7 @@ export default function DeanTheses({ collegeName, thesisTitles }: DeanThesesProp
                                 {thesisTitles.data.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={7}
+                                            colSpan={8}
                                             className="px-6 py-10 text-center text-sm text-muted-foreground"
                                         >
                                             No theses found for this college.
@@ -126,6 +130,9 @@ export default function DeanTheses({ collegeName, thesisTitles }: DeanThesesProp
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {item.adviser?.name ?? '—'}
+                                        </td>
+                                        <td className="px-6 py-4 text-muted-foreground">
+                                            {item.technical_adviser?.name ?? '—'}
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {item.college_name ?? '—'}

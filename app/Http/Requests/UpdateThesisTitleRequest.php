@@ -25,6 +25,7 @@ class UpdateThesisTitleRequest extends FormRequest
     {
         return [
             'adviser_id' => ['required', 'integer', 'exists:users,id'],
+            'technical_adviser_id' => ['nullable', 'integer', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'abstract_pdf' => ['sometimes', 'file', 'mimes:pdf'],
             'endorsement_pdf' => ['sometimes', 'file', 'mimes:pdf'],
@@ -44,6 +45,12 @@ class UpdateThesisTitleRequest extends FormRequest
 
                 if ($adviserId && ! User::teachers()->whereKey($adviserId)->exists()) {
                     $validator->errors()->add('adviser_id', __('Selected adviser must be a teacher.'));
+                }
+
+                $technicalAdviserId = $this->integer('technical_adviser_id');
+
+                if ($technicalAdviserId && ! User::teachers()->whereKey($technicalAdviserId)->exists()) {
+                    $validator->errors()->add('technical_adviser_id', __('Selected technical adviser must be a teacher.'));
                 }
 
                 $memberIds = collect($this->input('member_ids', []))

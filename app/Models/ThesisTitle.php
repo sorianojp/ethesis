@@ -16,6 +16,7 @@ class ThesisTitle extends Model
     protected $fillable = [
         'user_id',
         'adviser_id',
+        'technical_adviser_id',
         'college_name',
         'title',
         'abstract_pdf',
@@ -37,6 +38,11 @@ class ThesisTitle extends Model
     public function adviser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'adviser_id');
+    }
+
+    public function technicalAdviser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'technical_adviser_id');
     }
 
     public function theses(): HasMany

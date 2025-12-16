@@ -20,6 +20,7 @@ interface StudentActiveThesis {
     id: number;
     title: string;
     adviser: { id: number; name: string } | null;
+    technical_adviser: { id: number; name: string } | null;
     members: Array<{ id: number; name: string }>;
     statusCounts: Record<ThesisStatus, number>;
     totalChapters: number;
@@ -204,7 +205,7 @@ const formatDateTime = (
 
     try {
         return date.toLocaleString(undefined, options);
-    } catch (error) {
+    } catch {
         return date.toISOString();
     }
 };
@@ -306,6 +307,14 @@ function StudentSection({ data }: { data: StudentSummary }) {
                                         </dt>
                                         <dd className="text-sm text-foreground">
                                             {active.adviser?.name ?? '—'}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            Technical Adviser
+                                        </dt>
+                                        <dd className="text-sm text-foreground">
+                                            {active.technical_adviser?.name ?? '—'}
                                         </dd>
                                     </div>
                                     <div>

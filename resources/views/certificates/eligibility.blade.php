@@ -138,6 +138,11 @@
         </div>
 
         <div class="section">
+            <h2>Technical Adviser</h2>
+            <p>{{ optional($thesisTitle->technicalAdviser)->name ?? 'Not assigned' }}</p>
+        </div>
+
+        <div class="section">
             <h2>Defense Schedule</h2>
             <p>{{ $formattedSchedule }}</p>
         </div>
