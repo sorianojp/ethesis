@@ -26,4 +26,16 @@ class StoreThesisRequest extends FormRequest
             'thesis_pdf' => ['required', 'file', 'mimes:doc,docx'],
         ];
     }
+
+    /**
+     * Custom validation messages for the request.
+     */
+    public function messages(): array
+    {
+        return [
+            'thesis_pdf.required' => 'Attach your chapter before submitting.',
+            'thesis_pdf.mimes' => 'Only DOC or DOCX files are accepted.',
+            'thesis_pdf.uploaded' => 'Please upload a DOC or DOCX file within the size limit.',
+        ];
+    }
 }
